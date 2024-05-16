@@ -29,7 +29,7 @@ This whole game is writen in python.
 ## Some words to say
 The reason why I made this is that when I attended a class in [PKU](https://www.pku.edu.cn), we were required to make a simple game as the homework.
 
-I was motivated by [this repository](https://github.com/TobyfoxpurePython/-python), which facsimiled the classic [SUPER_MARIO_BROTHER](https://supermarioplay.com/) game all in python. That was a nice try,<br/>
+I was motivated by [this repository](https://github.com/TobyfoxpurePython/-python), which facsimiled the classic [SUPER_MARIO_BROTHER](https://supermarioplay.com/) game all in python. That was a nice try,
 really fascinating and pretty cool. So I download his work and made modiications on it, then this game __Hero vs Zombies__ came out. <br/>Much thanks to  the original author.
 
 I spent nearly two weeks on the main frame, during which I thought of nothing but coding, that was really crazy!<br/>
