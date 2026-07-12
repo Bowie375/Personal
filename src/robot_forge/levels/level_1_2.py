@@ -5,11 +5,11 @@ player picks both gears from the catalog and applies a motor voltage, and
 must reach a target RPM on the driven gear — in a specific direction.
 
 Mechanics (sim units, m-kg-s):
-- Driver and driven gears share a fixed center distance (frame is pre-built).
-- Compatible gear pair: their center_distance == frame_center_distance (tol).
+- All catalog gears share the same module, so any pair meshes. The frame
+  auto-sizes to the chosen pair's pitch-radius sum, so `meshed` is always
+  true and the ratio alone determines the driven speed.
 - Motor model: tau_motor = Kt * (V - Kb*omega) / R, clamped to torque_limit.
-- Gear constraint: omega_driven = -omega_driver * (N_driver / N_driven)
-  when meshed; otherwise driven is free (just bearing drag).
+- Gear constraint: omega_driven = -omega_driver * (N_driver / N_driven).
 - Bearings: each shaft has damping b on its own omega.
 - Target sign: +1 means "same direction as driver", -1 means "opposite".
   For an external mesh, sign is always -1, so target_sign = -1 always wins
@@ -39,7 +39,10 @@ MAX_VOLTAGE = 24.0  # V
 DEFAULT_TARGET_DRIVEN_RPM = 60.0
 DEFAULT_DRIVER_TEETH = 30
 DEFAULT_DRIVEN_TEETH = 30
-DEFAULT_FRAME_CENTER_DISTANCE = 30.0  # pitch radii 15 + 15 = 30
+# Default frame center distance is None: the frame auto-sizes to the
+# chosen gear pair so they always mesh. Tests that need a fixed frame
+# can still pass a number explicitly.
+DEFAULT_FRAME_CENTER_DISTANCE: float | None = None
 DEFAULT_INERTIA_PER_GEAR = 0.01
 DEFAULT_DAMPING = 0.05
 RPM_TOLERANCE = 1.0
@@ -73,7 +76,7 @@ class TwoGearLevel:
         driven_teeth: int = DEFAULT_DRIVEN_TEETH,
         target_driven_rpm: float = DEFAULT_TARGET_DRIVEN_RPM,
         target_sign: int = DEFAULT_TARGET_SIGN,
-        frame_center_distance: float = DEFAULT_FRAME_CENTER_DISTANCE,
+        frame_center_distance: float | None = None,
         inertia: float = DEFAULT_INERTIA_PER_GEAR,
         damping: float = DEFAULT_DAMPING,
         tolerance_rpm: float = RPM_TOLERANCE,
@@ -88,7 +91,12 @@ class TwoGearLevel:
         self.driven = SpurGear(driven_teeth)
         self.target_driven_rpm = target_driven_rpm
         self.target_sign = target_sign
-        self.frame_center_distance = frame_center_distance
+        # If the caller pinned a frame center distance, use it; otherwise
+        # let the frame follow the chosen gear pair so they always mesh.
+        if frame_center_distance is None:
+            self.frame_center_distance = center_distance(self.driver, self.driven)
+        else:
+            self.frame_center_distance = frame_center_distance
         self.inertia = inertia
         self.damping = damping
         self.tolerance_rpm = tolerance_rpm
@@ -130,6 +138,8 @@ class TwoGearLevel:
     def set_gears(self, driver_teeth: int, driven_teeth: int) -> None:
         self.driver = SpurGear(driver_teeth)
         self.driven = SpurGear(driven_teeth)
+        # The frame is rigidly tied to the chosen pair: gears always mesh.
+        self.frame_center_distance = center_distance(self.driver, self.driven)
 
     def _motor_torque(self, omega_driver: float) -> float:
         v = self.applied_voltage
@@ -210,6 +220,7 @@ class TwoGearLevel:
             "won": self.won,
             "driver_teeth": self.driver.teeth,
             "driven_teeth": self.driven.teeth,
+            "center_distance": self.frame_center_distance,
             "diagnostic": self.last_diagnostic.to_dict() if self.last_diagnostic else None,
         }
 

@@ -14,6 +14,7 @@ extends Control
 @export var driver_gear_select_path: NodePath
 @export var driven_gear_select_path: NodePath
 @export var mesh_status_label_path: NodePath
+@export var ratio_value_label_path: NodePath
 @export var diagnostic_panel_path: NodePath
 @export var diagnostic_message_label_path: NodePath
 @export var diagnostic_hint_label_path: NodePath
@@ -159,6 +160,19 @@ func _on_gears(d_teeth: int, dn_teeth: int) -> void:
 				_sending = true
 				nsel.selected = idx2
 				_sending = false
+	# Ratio: driver teeth : driven teeth (simplifies visually).
+	if d_teeth > 0 and dn_teeth > 0:
+		var ratio_lbl: Label = get_node(ratio_value_label_path) as Label
+		if ratio_lbl != null:
+			var g: int = _gcd(d_teeth, dn_teeth)
+			ratio_lbl.text = "N%d : N%d  (1:%.2f)" % [d_teeth / g, dn_teeth / g, float(d_teeth) / float(dn_teeth)]
+
+static func _gcd(a: int, b: int) -> int:
+	while b != 0:
+		var t: int = b
+		b = a % b
+		a = t
+	return a
 
 func _on_meshed(meshed: bool) -> void:
 	var lbl: Label = get_node(mesh_status_label_path) as Label

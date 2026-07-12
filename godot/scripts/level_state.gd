@@ -24,6 +24,7 @@ var target_rpm: float = 60.0
 var target_sign: int = -1
 var driver_teeth: int = 0
 var driven_teeth: int = 0
+var center_distance: float = 0.0
 var meshed: bool = false
 var won: bool = false
 var diagnostic: Dictionary = {}
@@ -79,6 +80,8 @@ func _on_sim_state(state: Dictionary) -> void:
 		driver_teeth = new_driver
 		driven_teeth = new_driven
 		gear_teeth_changed.emit(new_driver, new_driven)
+	var new_center_distance: float = float(extras.get("center_distance", 0.0))
+	center_distance = new_center_distance  # always update; consumers compare
 	var new_meshed: bool = bool(extras.get("meshed", true))
 	if new_meshed != meshed:
 		meshed = new_meshed

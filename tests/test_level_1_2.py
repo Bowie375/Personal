@@ -12,14 +12,19 @@ from robot_forge.levels.level_1_2 import (
 )
 
 
-def test_meshing_pair_at_default_center_distance() -> None:
-    lvl = TwoGearLevel()  # default N30 + N30, center 30
+def test_default_pair_is_meshed() -> None:
+    lvl = TwoGearLevel()  # default N30 + N30
     assert lvl.meshed
+    assert lvl.frame_center_distance == 30.0  # 15 + 15
 
 
-def test_non_meshing_pair_detected() -> None:
-    lvl = TwoGearLevel(driver_teeth=20, driven_teeth=20)  # 10+10=20, frame is 30
-    assert not lvl.meshed
+def test_any_pair_is_always_meshed() -> None:
+    # All catalog gears share the same module, so the frame auto-sizes.
+    for d in (12, 20, 30, 48, 60):
+        for n in (12, 20, 30, 48, 60):
+            lvl = TwoGearLevel(driver_teeth=d, driven_teeth=n)
+            assert lvl.meshed, f"N{d} + N{n} should mesh"
+            assert lvl.frame_center_distance == (d + n) * 0.5
 
 
 def test_1_to_1_pair_wins_with_correct_voltage() -> None:
@@ -42,17 +47,6 @@ def test_direction_is_opposite_for_external_mesh() -> None:
         lvl.step()
     assert lvl.driver_rpm > 0
     assert lvl.driven_rpm < 0  # mesh flips sign
-
-
-def test_unmeshed_driven_freewheels() -> None:
-    lvl = TwoGearLevel(driver_teeth=20, driven_teeth=20)  # not meshing
-    lvl.set_voltage(6.0)
-    for _ in range(int(5.0 / DT)):
-        lvl.step()
-    # Driver spins up; driven has only bearing drag, so it stays near 0.
-    assert lvl.driver_rpm > 50
-    assert abs(lvl.driven_rpm) < 5
-    assert lvl.last_diagnostic is not None
 
 
 def test_too_low_voltage_diagnoses_too_slow() -> None:
@@ -100,13 +94,15 @@ def test_voltage_clamped_to_max() -> None:
     assert lvl.applied_voltage == -lvl.max_voltage
 
 
-def test_set_gears_resets_pair() -> None:
+def test_set_gears_resets_pair_and_recomputes_frame() -> None:
     lvl = TwoGearLevel()
+    assert lvl.frame_center_distance == 30.0  # 1:1 default
     lvl.set_gears(driver_teeth=20, driven_teeth=60)
     assert lvl.driver.teeth == 20
     assert lvl.driven.teeth == 60
-    # New pair at center 30 is NOT meshing (radii 10+30=40 != 30).
-    assert not lvl.meshed
+    # Frame auto-sizes to the new pair's pitch radii sum.
+    assert lvl.frame_center_distance == 40.0  # 10 + 30
+    assert lvl.meshed
 
 
 def test_summary_includes_state() -> None:
@@ -126,12 +122,11 @@ def test_solve_voltage_is_finite() -> None:
 
 
 def test_3_to_1_pair_wins_with_lower_voltage() -> None:
-    # N20 + N60 at center 40: ratio 3:1, so driven is 1/3 of driver.
-    # To get 60 RPM driven, driver needs 180 RPM. Higher voltage.
+    # N20 + N60: ratio 3:1, so driven is 1/3 of driver. To get 60 RPM
+    # driven, the driver needs 180 RPM — higher voltage than the 1:1 case.
     lvl = TwoGearLevel(
         driver_teeth=20,
         driven_teeth=60,
-        frame_center_distance=40.0,
     )
     assert lvl.meshed
     v = solve_driving_voltage(lvl.target_driven_rpm, lvl.driver, lvl.driven)
@@ -141,3 +136,10 @@ def test_3_to_1_pair_wins_with_lower_voltage() -> None:
         lvl.step()
     assert lvl.won
     assert math.isclose(abs(lvl.driven_rpm), lvl.target_driven_rpm, abs_tol=2.0)
+
+
+def test_summary_includes_center_distance() -> None:
+    lvl = TwoGearLevel()
+    s = lvl.summary()
+    assert "center_distance" in s
+    assert s["center_distance"] == 30.0

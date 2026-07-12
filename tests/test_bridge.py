@@ -9,15 +9,28 @@ from robot_forge.bridge.server import BridgeServer
 from robot_forge.core.types import Action, SimState
 
 
+def _free_port() -> int:
+    """Ask the OS for an unused UDP port. Avoids 9999 collisions in CI."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.bind(("127.0.0.1", 0))
+    port: int = s.getsockname()[1]
+    s.close()
+    return port
+
+
 def test_action_received() -> None:
+    port = _free_port()
     received: list[Action] = []
-    server = BridgeServer(on_action=lambda a: received.append(a))
+    server = BridgeServer(port=port, on_action=lambda a: received.append(a))
     server.start()
     try:
         time.sleep(0.1)
         # Register as a client by sending a packet from a UDP socket.
         sender = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sender.sendto(b'{"action": "ping", "payload": {"value": 42}}', ("127.0.0.1", 9999))
+        sender.sendto(
+            b'{"action": "ping", "payload": {"value": 42}}',
+            ("127.0.0.1", port),
+        )
         sender.close()
         time.sleep(0.2)
         assert len(received) == 1
@@ -28,7 +41,8 @@ def test_action_received() -> None:
 
 
 def test_broadcast_reaches_client() -> None:
-    server = BridgeServer()
+    port = _free_port()
+    server = BridgeServer(port=port)
     server.start()
     try:
         time.sleep(0.1)
@@ -37,7 +51,7 @@ def test_broadcast_reaches_client() -> None:
         client.bind(("127.0.0.1", 0))
         client.settimeout(2.0)
         # Send a dummy action to register.
-        client.sendto(b'{"action": "hello"}', ("127.0.0.1", 9999))
+        client.sendto(b'{"action": "hello"}', ("127.0.0.1", port))
         time.sleep(0.1)
         # Now broadcast.
         server.broadcast(SimState(timestamp=1.0, joints=[{"id": 0, "angle": 0.5}]))

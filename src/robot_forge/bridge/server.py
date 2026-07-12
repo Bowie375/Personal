@@ -33,6 +33,10 @@ class BridgeServer:
     def start(self) -> None:
         """Bind socket and spawn the receive thread."""
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Allow re-binding after a previous test (e.g. on TIME_WAIT sockets).
+        self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        if hasattr(socket, "SO_REUSEPORT"):
+            self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         self._sock.bind((self.host, self.port))
         self._sock.settimeout(0.1)
         self._running = True

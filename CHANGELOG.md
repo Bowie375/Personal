@@ -30,6 +30,9 @@ Format: [Semantic Versioning](https://semver.org/).
 - Godot 1.2 gear orientation: cylinder mesh was rotating around its diameter (Z) instead of in place (Y→Z align). `gear_visual.gd` and `shaft_visual.gd` now bake a Y→spin_axis alignment so the disc spins flat regardless of the chosen axis.
 - Godot 1.1 / 1.2 HUD was overlaying the 3D scene. Moved the HUD to a fixed right-side panel (420 px wide, full height), shifted the gear assembly and camera so the 3D area is unobstructed. Win and diagnostic panels stay centered as transient overlays.
 - 1.1 shaft default `spin_axis` is now (0, 1, 0) so the long thin shaft spins around its own length axis.
+- **1.2 mesh logic was wrong.** Gears with the same module always mesh in real gear systems; the old `center_distance == 30` check was an arbitrary constant that only matched the 1:1 case. Now `frame_center_distance` auto-sizes to the chosen pair's pitch-radius sum, and the visual repositioning (`gear_assembly.gd`) tracks it. All catalog pairs mesh.
+- **1.2 gear visualization is now a real gear.** Replaced the uniform `CylinderMesh` with a procedurally generated toothed gear (`gear_visual.gd::_build_gear_surface`) — flat disc in the XZ plane, hub hole, trapezoidal teeth. Teeth make rotation unambiguous from any angle. The mesh rebuilds when the player picks new gears (driven by `gear_teeth_changed`).
+- Bridge tests use a free UDP port (`_free_port()` helper) so they no longer collide on `127.0.0.1:9999` in CI / repeated runs.
 
 ## Progression — Draft for review
 
