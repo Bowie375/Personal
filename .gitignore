@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.uv/
+dist/
+build/
+wheels/
+
+# Godot
+.godot/
+.import/
+*.translation
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# Sim artifacts
+*.urdf~
+*.stl~
+logs/
+*.log
