@@ -63,6 +63,13 @@ robot/
 
 See [CHANGELOG.md §Progression](CHANGELOG.md) — pending your review.
 
+## Design decisions (locked 2026-07-12)
+
+- **Gearbox style:** planetary (compact, common in real robot joints)
+- **Arm:** Franka Emika Panda (7-DOF, torque-sensing, redundant)
+- **Failure feedback:** teach — diagnostic engine explains *why* a level failed
+- **Persistence:** player profile (unlocked levels, last completed, settings) — no best-time leaderboards
+
 ## Bridge protocol (skeleton)
 
 - **Client → Server** (Godot → Python): `{"action": "set_motor", "id": 0, "value": 1.0}`

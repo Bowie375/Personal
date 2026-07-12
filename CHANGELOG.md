@@ -11,11 +11,18 @@ Format: [Semantic Versioning](https://semver.org/).
 - Game progression: hybrid assembly (schematic → physics test), guided → sandbox
 - `src/robot_forge/` Python package layout
 - `godot/` Godot 4 project root (scenes/, scripts/, assets/)
+- Bridge: UDP server (`src/robot_forge/bridge/server.py`), JSON protocol, `BridgeClient` GDScript
+- Persistence: `ProfileStore` with atomic writes, schema versioning, XDG path (`~/.local/share/robot-forge/profile.json`)
+- Gear catalog (`src/robot_forge/sim/gears.py`): standard module, planetary ratio formulas, ratio solver
+- Diagnostic engine (`src/robot_forge/levels/diagnostics.py`): structured teaching on failure
+- Act 1.1 Spinning Shaft level: rotational dynamics, target RPM, settle window, win condition
+- Session (`src/robot_forge/bridge/session.py`): wires level + bridge + profile, broadcasts sim-state ticks
+- 35 pytest cases (bridge, profile, gears, diagnostics, level 1.1, end-to-end session)
 
 ### Pending
-- Bridge protocol implementation (UDP/JSON)
-- Game progression schedule (draft in progress)
-- Act 1: Gear basics level
+- Godot 3D scene + UI for Act 1.1 (placeholder scenes/ exist)
+- Act 1.2 Two gears level
+- PyBullet adapter to replace headless rotational sim
 
 ## Progression — Draft for review
 
@@ -69,7 +76,13 @@ Format: [Semantic Versioning](https://semver.org/).
 
 - Free build: parts catalog, no fixed goal
 - Challenge missions: player-authored shareable scenarios
-- Leaderboards per mission (precision, speed, energy)
+
+## Design decisions (locked 2026-07-12)
+
+- **Gearbox style:** planetary (compact, common in real robot joints)
+- **Arm:** Franka Emika Panda (7-DOF, torque-sensing, redundant)
+- **Failure feedback:** teach — diagnostic engine explains *why* a level failed
+- **Persistence:** player profile (unlocked levels, last completed, settings) — no best-time leaderboards
 
 ## [0.1.0] — 2026-07-12
 
