@@ -1,0 +1,271 @@
+[gd_scene load_steps=14 format=3 uid="uid://robot_forge_level_1_2"]
+
+[ext_resource type="Script" path="res://scripts/level_state.gd" id="1_state"]
+[ext_resource type="Script" path="res://scripts/gear_hud.gd" id="2_hud"]
+[ext_resource type="Script" path="res://scripts/gear_visual.gd" id="3_visual"]
+[ext_resource type="Script" path="res://scripts/level_controller.gd" id="4_ctrl"]
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_driver"]
+top_radius = 0.5
+bottom_radius = 0.5
+height = 0.2
+radial_segments = 32
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_driven"]
+top_radius = 0.5
+bottom_radius = 0.5
+height = 0.2
+radial_segments = 32
+
+[sub_resource type="StandardMaterial3D" id="Mat_driver"]
+albedo_color = Color(0.7, 0.65, 0.45, 1)
+metallic = 0.7
+roughness = 0.3
+
+[sub_resource type="StandardMaterial3D" id="Mat_driven"]
+albedo_color = Color(0.5, 0.6, 0.75, 1)
+metallic = 0.7
+roughness = 0.3
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_floor"]
+size = Vector2(10, 10)
+
+[sub_resource type="StandardMaterial3D" id="Mat_floor"]
+albedo_color = Color(0.15, 0.15, 0.18, 1)
+roughness = 0.9
+
+[sub_resource type="ProceduralSkyMaterial" id="Sky_proc"]
+sky_top_color = Color(0.1, 0.12, 0.15, 1)
+sky_horizon_color = Color(0.2, 0.22, 0.25, 1)
+ground_horizon_color = Color(0.15, 0.15, 0.18, 1)
+ground_bottom_color = Color(0.1, 0.1, 0.1, 1)
+sun_angle_max = 30.0
+sun_curve = 0.15
+
+[sub_resource type="Sky" id="Sky_1"]
+sky_material = SubResource("Sky_proc")
+
+[sub_resource type="Environment" id="Env_1"]
+background_mode = 2
+sky = SubResource("Sky_1")
+ambient_light_source = 3
+ambient_light_color = Color(0.4, 0.45, 0.5, 1)
+ambient_light_energy = 0.5
+
+[node name="Level_1_2" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env_1")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, -0.354, 0.354, 0, 0.707, 0.707, -0.5, -0.612, 0.612, 0, 5, 0)
+shadow_enabled = true
+light_energy = 1.0
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.85, 0.53, 0, -0.53, 0.85, 0, 2, 5)
+fov = 50.0
+
+[node name="Floor" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("PlaneMesh_floor")
+material_override = SubResource("Mat_floor")
+
+[node name="GearAssembly" type="Node3D" parent="."]
+
+[node name="DriverGear" type="MeshInstance3D" parent="GearAssembly"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.2, 1, 0)
+mesh = SubResource("CylinderMesh_driver")
+material_override = SubResource("Mat_driver")
+script = ExtResource("3_visual")
+state_path = NodePath("../../LevelState")
+joint_id = 0
+spin_axis = Vector3(0, 0, 1)
+
+[node name="DrivenGear" type="MeshInstance3D" parent="GearAssembly"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.2, 1, 0)
+mesh = SubResource("CylinderMesh_driven")
+material_override = SubResource("Mat_driven")
+script = ExtResource("3_visual")
+state_path = NodePath("../../LevelState")
+joint_id = 1
+spin_axis = Vector3(0, 0, 1)
+
+[node name="Motor" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.2, 1, 0)
+
+[node name="LevelState" type="Node" parent="."]
+script = ExtResource("1_state")
+
+[node name="LevelController" type="Node" parent="."]
+script = ExtResource("4_ctrl")
+win_panel_path = NodePath("../HUD/WinPanel")
+next_button_path = NodePath("../HUD/WinPanel/VBox/NextButton")
+
+[node name="HUD" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 1
+script = ExtResource("2_hud")
+voltage_slider_path = NodePath("VBox/VoltageRow/VoltageSlider")
+voltage_value_label_path = NodePath("VBox/VoltageRow/VoltageValue")
+driver_rpm_label_path = NodePath("VBox/DriverRpmRow/DriverRpmValue")
+driven_rpm_label_path = NodePath("VBox/DrivenRpmRow/DrivenRpmValue")
+target_value_label_path = NodePath("VBox/DrivenRpmRow/TargetValue")
+driver_bar_path = NodePath("VBox/BarsContainer/DriverBar")
+driven_bar_path = NodePath("VBox/BarsContainer/DrivenBar")
+target_marker_path = NodePath("VBox/BarsContainer/TargetMarker")
+driver_gear_select_path = NodePath("VBox/GearRow/DriverGearSelect")
+driven_gear_select_path = NodePath("VBox/GearRow/DrivenGearSelect")
+mesh_status_label_path = NodePath("VBox/MeshStatusRow/MeshStatusValue")
+diagnostic_panel_path = NodePath("DiagnosticPanel")
+diagnostic_message_label_path = NodePath("DiagnosticPanel/VBox/DiagMessage")
+diagnostic_hint_label_path = NodePath("DiagnosticPanel/VBox/DiagHint")
+win_panel_path = NodePath("WinPanel")
+
+[node name="Title" type="Label" parent="HUD"]
+offset_left = 24.0
+offset_top = 20.0
+offset_right = 600.0
+offset_bottom = 50.0
+text = "Act 1.2 — Two gears"
+
+[node name="VBox" type="VBoxContainer" parent="HUD"]
+offset_left = 24.0
+offset_top = 70.0
+offset_right = 800.0
+offset_bottom = 380.0
+
+[node name="VoltageRow" type="HBoxContainer" parent="HUD/VBox"]
+
+[node name="VoltageLabel" type="Label" parent="HUD/VBox/VoltageRow"]
+custom_minimum_size = Vector2(120, 0)
+text = "Motor V"
+
+[node name="VoltageSlider" type="HSlider" parent="HUD/VBox/VoltageRow"]
+custom_minimum_size = Vector2(400, 0)
+max_value = 24.0
+min_value = -24.0
+step = 0.1
+
+[node name="VoltageValue" type="Label" parent="HUD/VBox/VoltageRow"]
+custom_minimum_size = Vector2(150, 0)
+text = "Voltage: 0.00 V"
+
+[node name="GearRow" type="HBoxContainer" parent="HUD/VBox"]
+
+[node name="DriverGearLabel" type="Label" parent="HUD/VBox/GearRow"]
+custom_minimum_size = Vector2(120, 0)
+text = "Driver"
+
+[node name="DriverGearSelect" type="OptionButton" parent="HUD/VBox/GearRow"]
+custom_minimum_size = Vector2(120, 0)
+
+[node name="DrivenGearLabel" type="Label" parent="HUD/VBox/GearRow"]
+custom_minimum_size = Vector2(120, 0)
+text = "Driven"
+
+[node name="DrivenGearSelect" type="OptionButton" parent="HUD/VBox/GearRow"]
+custom_minimum_size = Vector2(120, 0)
+
+[node name="MeshStatusRow" type="HBoxContainer" parent="HUD/VBox"]
+
+[node name="MeshStatusLabel" type="Label" parent="HUD/VBox/MeshStatusRow"]
+custom_minimum_size = Vector2(120, 0)
+text = "Mesh"
+
+[node name="MeshStatusValue" type="Label" parent="HUD/VBox/MeshStatusRow"]
+text = "Mesh: ?"
+
+[node name="DriverRpmRow" type="HBoxContainer" parent="HUD/VBox"]
+
+[node name="DriverRpmLabel" type="Label" parent="HUD/VBox/DriverRpmRow"]
+custom_minimum_size = Vector2(120, 0)
+text = "Driver RPM"
+
+[node name="DriverRpmValue" type="Label" parent="HUD/VBox/DriverRpmRow"]
+custom_minimum_size = Vector2(200, 0)
+text = "0.0 RPM"
+
+[node name="DrivenRpmRow" type="HBoxContainer" parent="HUD/VBox"]
+
+[node name="DrivenRpmLabel" type="Label" parent="HUD/VBox/DrivenRpmRow"]
+custom_minimum_size = Vector2(120, 0)
+text = "Driven RPM"
+
+[node name="DrivenRpmValue" type="Label" parent="HUD/VBox/DrivenRpmRow"]
+custom_minimum_size = Vector2(200, 0)
+text = "0.0 RPM"
+
+[node name="TargetValue" type="Label" parent="HUD/VBox/DrivenRpmRow"]
+text = "Target: 60 RPM"
+
+[node name="Hint" type="Label" parent="HUD/VBox"]
+text = "Drag voltage slider. ↑/↓ or W/S to nudge. R resets. Esc returns to menu."
+
+[node name="BarsContainer" type="Control" parent="HUD/VBox"]
+custom_minimum_size = Vector2(0, 56)
+
+[node name="DriverBar" type="ProgressBar" parent="HUD/VBox/BarsContainer"]
+anchor_right = 1.0
+offset_top = 0.0
+offset_bottom = 24.0
+max_value = 200.0
+value = 0.0
+show_percentage = false
+
+[node name="DrivenBar" type="ProgressBar" parent="HUD/VBox/BarsContainer"]
+anchor_right = 1.0
+offset_top = 28.0
+offset_bottom = 52.0
+max_value = 200.0
+value = 0.0
+show_percentage = false
+
+[node name="TargetMarker" type="ColorRect" parent="HUD/VBox/BarsContainer"]
+custom_minimum_size = Vector2(2, 56)
+color = Color(1, 0.85, 0.2, 1)
+
+[node name="DiagnosticPanel" type="PanelContainer" parent="HUD"]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -60.0
+offset_right = 300.0
+offset_bottom = 60.0
+
+[node name="VBox" type="VBoxContainer" parent="HUD/DiagnosticPanel"]
+
+[node name="DiagMessage" type="Label" parent="HUD/DiagnosticPanel/VBox"]
+autowrap_mode = 2
+
+[node name="DiagHint" type="Label" parent="HUD/DiagnosticPanel/VBox"]
+modulate = Color(1, 1, 1, 0.75)
+autowrap_mode = 2
+
+[node name="WinPanel" type="PanelContainer" parent="HUD"]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -220.0
+offset_top = -70.0
+offset_right = 220.0
+offset_bottom = 70.0
+
+[node name="VBox" type="VBoxContainer" parent="HUD/WinPanel"]
+
+[node name="WinLabel" type="Label" parent="HUD/WinPanel/VBox"]
+text = "Level complete!"
+horizontal_alignment = 1
+
+[node name="NextButton" type="Button" parent="HUD/WinPanel/VBox"]
+text = "Return to menu"

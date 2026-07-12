@@ -16,12 +16,14 @@ Format: [Semantic Versioning](https://semver.org/).
 - Gear catalog (`src/robot_forge/sim/gears.py`): standard module, planetary ratio formulas, ratio solver
 - Diagnostic engine (`src/robot_forge/levels/diagnostics.py`): structured teaching on failure
 - Act 1.1 Spinning Shaft level: rotational dynamics, target RPM, settle window, win condition
-- Session (`src/robot_forge/bridge/session.py`): wires level + bridge + profile, broadcasts sim-state ticks
-- 35 pytest cases (bridge, profile, gears, diagnostics, level 1.1, end-to-end session)
+- Act 1.2 Two Gears level: DC motor curve (Kt, Kb, R), gear mesh constraint, target magnitude+sign on driven gear
+- Session (`src/robot_forge/bridge/session.py`): wires level + bridge + profile, broadcasts sim-state ticks; supports 1.1 and 1.2
+- Godot scenes: `main.tscn` (level select), `level_1_1.tscn` (3D shaft + HUD), `level_1_2.tscn` (two gears + HUD with voltage slider, gear selectors, dual RPM gauges)
+- 49 pytest cases (bridge, profile, gears, diagnostics, level 1.1, level 1.2, end-to-end session for both levels)
 
 ### Pending
 - Godot UI smoke-test on user machine (no Godot binary in this dev env)
-- Act 1.2 Two gears level
+- Act 1.3 Idler gear level
 - PyBullet adapter to replace headless rotational sim
 
 ## Progression — Draft for review

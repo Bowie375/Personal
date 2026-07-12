@@ -1,12 +1,13 @@
 extends MeshInstance3D
 
-## Rotates the shaft mesh from the angle streamed in by LevelState.
+## Rotates a gear mesh from a specific joint id in LevelState.
 
 @export var state_path: NodePath
 @export var joint_id: int = 0
 @export var spin_axis: Vector3 = Vector3(0, 0, 1)
 
 var _state: Node
+var _angle: float = 0.0
 var _base_rotation: Basis
 
 func _ready() -> void:
@@ -17,4 +18,5 @@ func _ready() -> void:
 
 func _on_joint(jid: int, _rpm: float, angle: float) -> void:
 	if jid == joint_id:
-		transform.basis = _base_rotation * Basis(spin_axis.normalized(), angle)
+		_angle = angle
+		transform.basis = _base_rotation * Basis(spin_axis.normalized(), _angle)

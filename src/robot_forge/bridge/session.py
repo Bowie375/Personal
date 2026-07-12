@@ -9,14 +9,44 @@ import time
 from robot_forge.bridge.server import BridgeServer
 from robot_forge.core.profile import ProfileStore
 from robot_forge.core.types import SimState
-from robot_forge.levels.level_1_1 import DT, ShaftLevel
+from robot_forge.levels.level_1_1 import DT as DT_1_1
+from robot_forge.levels.level_1_1 import ShaftLevel
+from robot_forge.levels.level_1_2 import DT as DT_1_2
+from robot_forge.levels.level_1_2 import TwoGearLevel
 
 logger = logging.getLogger(__name__)
 
 # Action names the UI can send.
 ACTION_SET_TORQUE = "set_torque"
+ACTION_SET_VOLTAGE = "set_voltage"
+ACTION_SET_GEARS = "set_gears"
 ACTION_RESET = "reset"
 ACTION_PING = "ping"
+
+
+def _summary_1_1(level: ShaftLevel) -> dict:
+    return {
+        "level": "1.1",
+        "t": level.state.t,
+        "driver_rpm": level.rpm,
+        "driven_rpm": level.rpm,
+        "target_driven_rpm": level.target_rpm,
+        "torque": level.applied_torque,
+        "voltage": 0.0,
+        "meshed": True,
+        "won": level.won,
+        "driver_teeth": 0,
+        "driven_teeth": 0,
+        "target_sign": -1,
+        "diagnostic": level.last_diagnostic.to_dict() if level.last_diagnostic else None,
+    }
+
+
+def _summary_1_2(level: TwoGearLevel) -> dict:
+    s = level.summary()
+    # Ensure target_sign is present for the bridge payload.
+    s.setdefault("target_sign", level.target_sign)
+    return s
 
 
 class LevelSession:
@@ -32,23 +62,31 @@ class LevelSession:
     ) -> None:
         self.level_id = level_id
         self.profile = profile
-        self.level: ShaftLevel = self._build_level(level_id)
+        self.level = self._build_level(level_id)
         self.bridge = BridgeServer(host=host, port=port, on_action=self._on_action)
         self._sim_period = 1.0 / sim_hz
         self._running = False
         self._thread: threading.Thread | None = None
 
-    def _build_level(self, level_id: str) -> ShaftLevel:
-        # Registry will grow; for now 1.1 is the only level.
+    def _build_level(self, level_id: str):
         if level_id == "1.1":
             return ShaftLevel()
+        if level_id == "1.2":
+            return TwoGearLevel()
         raise ValueError(f"Unknown level: {level_id}")
 
     def _on_action(self, action) -> None:
         name = action.name
         payload = action.payload
-        if name == ACTION_SET_TORQUE:
+        if name == ACTION_SET_TORQUE and hasattr(self.level, "set_torque"):
             self.level.set_torque(float(payload.get("value", 0.0)))
+        elif name == ACTION_SET_VOLTAGE and hasattr(self.level, "set_voltage"):
+            self.level.set_voltage(float(payload.get("value", 0.0)))
+        elif name == ACTION_SET_GEARS and hasattr(self.level, "set_gears"):
+            d = int(payload.get("driver", 0))
+            dn = int(payload.get("driven", 0))
+            if d > 0 and dn > 0:
+                self.level.set_gears(driver_teeth=d, driven_teeth=dn)
         elif name == ACTION_RESET:
             self.level = self._build_level(self.level_id)
         elif name == ACTION_PING:
@@ -84,22 +122,24 @@ class LevelSession:
             if now - last < self._sim_period:
                 time.sleep(self._sim_period - (now - last))
             last = time.perf_counter()
-            self.level.step(DT)
-            self.bridge.broadcast(
-                SimState(
-                    timestamp=self.level.state.t,
-                    joints=[{"id": 0, "rpm": self.level.rpm, "angle": self.level.state.angle_rad}],
-                    extras={
-                        "level": self.level_id,
-                        "target_rpm": self.level.target_rpm,
-                        "torque": self.level.applied_torque,
-                        "won": self.level.won,
-                        "diagnostic": self.level.last_diagnostic.to_dict()
-                        if self.level.last_diagnostic
-                        else None,
-                    },
-                )
+            dt = DT_1_2 if self.level_id == "1.2" else DT_1_1
+            self.level.step(dt)
+            extras = (
+                _summary_1_2(self.level) if self.level_id == "1.2" else _summary_1_1(self.level)
             )
+            joints = self._joints_for(self.level_id, self.level)
+            self.bridge.broadcast(
+                SimState(timestamp=extras.get("t", 0.0), joints=joints, extras=extras)
+            )
+
+    def _joints_for(self, level_id: str, level) -> list[dict]:
+        if level_id == "1.2":
+            return [
+                {"id": 0, "rpm": level.driver_rpm, "angle": level.state.driver_angle},
+                {"id": 1, "rpm": level.driven_rpm, "angle": level.state.driven_angle},
+            ]
+        # Default: 1.1 — single shaft.
+        return [{"id": 0, "rpm": level.rpm, "angle": level.state.angle_rad}]
 
 
 def main() -> None:

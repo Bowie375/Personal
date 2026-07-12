@@ -9,7 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from robot_forge.bridge.session import ACTION_SET_TORQUE, LevelSession
+from robot_forge.bridge.session import (
+    ACTION_SET_TORQUE,
+    ACTION_SET_VOLTAGE,
+    LevelSession,
+)
 from robot_forge.core.profile import ProfileStore
 
 
@@ -105,5 +109,59 @@ def test_session_clamps_unknown_action(tmp_path: Path) -> None:
         client.close()
         # No crash, level state still pristine.
         assert sess.level.applied_torque == 0.0
+    finally:
+        sess.stop()
+
+
+def test_session_runs_level_1_2_and_wins(tmp_path: Path) -> None:
+    """End-to-end for Act 1.2: voltage action drives a 1:1 gear pair to target."""
+    profile_path = tmp_path / "profile_12.json"
+    port = 19996
+    profile = ProfileStore(profile_path)
+    sess = LevelSession("1.2", profile=profile, port=port, sim_hz=200.0)
+    sess.start()
+    try:
+        client = _make_client(port)
+        _send_action(client, "ping", {}, port)
+        from robot_forge.levels.level_1_2 import solve_driving_voltage
+
+        v = solve_driving_voltage(
+            sess.level.target_driven_rpm, sess.level.driver, sess.level.driven
+        )
+        _send_action(client, ACTION_SET_VOLTAGE, {"value": abs(v) * 1.01}, port)
+        deadline = time.time() + 12.0
+        states = []
+        while time.time() < deadline:
+            try:
+                client.settimeout(0.5)
+                data, _ = client.recvfrom(65535)
+                s = json.loads(data.decode("utf-8"))
+                states.append(s)
+                if s.get("extras", {}).get("won"):
+                    break
+            except TimeoutError:
+                pass
+        client.close()
+        assert any(s["extras"]["won"] for s in states), (
+            f"1.2 never won after 12s; last extras: {states[-1]['extras'] if states else 'no states'}"
+        )
+    finally:
+        sess.stop()
+    p = ProfileStore(profile_path).load()
+    assert "1.2" in p.completed
+
+
+def test_session_set_gears_action_swaps_pair(tmp_path: Path) -> None:
+    port = 19995
+    sess = LevelSession("1.2", profile=None, port=port, sim_hz=200.0)
+    sess.start()
+    try:
+        client = _make_client(port)
+        _send_action(client, "ping", {}, port)
+        _send_action(client, "set_gears", {"driver": 20, "driven": 60}, port)
+        time.sleep(0.1)
+        client.close()
+        assert sess.level.driver.teeth == 20
+        assert sess.level.driven.teeth == 60
     finally:
         sess.stop()

@@ -21,7 +21,7 @@ var _sending: bool = false  # guard against feedback loop
 
 func bind(state: Node) -> void:
 	_state = state
-	state.connect("rpm_changed", _on_rpm)
+	state.connect("joint_changed", _on_joint)
 	state.connect("torque_changed", _on_torque_remote)
 	state.connect("target_changed", _on_target)
 	state.connect("diagnostic_changed", _on_diagnostic)
@@ -29,6 +29,10 @@ func bind(state: Node) -> void:
 	# Prime initial values.
 	_on_target(state.target_rpm)
 	_on_torque_remote(state.last_torque)
+
+func _on_joint(_joint_id: int, rpm: float, _angle: float) -> void:
+	# 1.1 has only one shaft (joint 0), so any joint change updates the bar.
+	_on_rpm(rpm)
 
 func _ready() -> void:
 	# Slider drives torque actions; release/change sends a set_torque.
@@ -43,7 +47,7 @@ func _ready() -> void:
 	var owner_node: Node = get_parent()
 	if owner_node != null:
 		var candidate: Node = owner_node.get_node_or_null("LevelState")
-		if candidate != null and candidate.has_signal("rpm_changed"):
+		if candidate != null and candidate.has_signal("joint_changed"):
 			bind(candidate)
 
 func _on_slider_changed(value: float) -> void:
