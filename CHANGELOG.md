@@ -26,6 +26,11 @@ Format: [Semantic Versioning](https://semver.org/).
 - Act 1.3 Idler gear level
 - PyBullet adapter to replace headless rotational sim
 
+### Fixed
+- Godot 1.2 gear orientation: cylinder mesh was rotating around its diameter (Z) instead of in place (Y→Z align). `gear_visual.gd` and `shaft_visual.gd` now bake a Y→spin_axis alignment so the disc spins flat regardless of the chosen axis.
+- Godot 1.1 / 1.2 HUD was overlaying the 3D scene. Moved the HUD to a fixed right-side panel (420 px wide, full height), shifted the gear assembly and camera so the 3D area is unobstructed. Win and diagnostic panels stay centered as transient overlays.
+- 1.1 shaft default `spin_axis` is now (0, 1, 0) so the long thin shaft spins around its own length axis.
+
 ## Progression — Draft for review
 
 ### Act 1 — Mechanical Foundations (PyBullet)
