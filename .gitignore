@@ -24,3 +24,5 @@ wheels/
 *.stl~
 logs/
 *.log
+
+tmp/

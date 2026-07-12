@@ -20,7 +20,7 @@ Format: [Semantic Versioning](https://semver.org/).
 - 35 pytest cases (bridge, profile, gears, diagnostics, level 1.1, end-to-end session)
 
 ### Pending
-- Godot 3D scene + UI for Act 1.1 (placeholder scenes/ exist)
+- Godot UI smoke-test on user machine (no Godot binary in this dev env)
 - Act 1.2 Two gears level
 - PyBullet adapter to replace headless rotational sim
 
