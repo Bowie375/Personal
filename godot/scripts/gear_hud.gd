@@ -125,7 +125,7 @@ func _set_bar(lbl: Label, bar: ProgressBar, rpm: float) -> void:
 		var arrow: String = "→" if rpm > 0.1 else ("←" if rpm < -0.1 else "·")
 		lbl.text = "%s %.1f RPM" % [arrow, abs(rpm)]
 
-func _on_target(target: float) -> None:
+func _on_target(target: float) -> void:
 	_max_rpm = max(120.0, target * 2.0)
 	var marker: Control = get_node(target_marker_path) as Control
 	var dbar: ProgressBar = get_node(driver_bar_path) as ProgressBar
