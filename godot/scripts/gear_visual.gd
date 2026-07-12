@@ -38,5 +38,6 @@ static func _compute_axis_align(axis: Vector3) -> Basis:
 		return Basis.IDENTITY
 	if a == -Vector3.UP:
 		return Basis(Vector3.RIGHT, PI)
-	# General case: rotation that takes UP to a.
-	return Basis(Vector3.UP, a)
+	# General case: rotation that takes UP to a, via Quaternion.
+	var q: Quaternion = Quaternion(Vector3.UP, a)
+	return Basis(q)
