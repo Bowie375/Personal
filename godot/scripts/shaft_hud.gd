@@ -1,5 +1,4 @@
 extends Control
-class_name ShaftHud
 
 ## HUD overlay: torque slider, RPM bar with target, diagnostic, win banner.
 ## Bind in the editor to the children listed in @export vars.
@@ -15,18 +14,18 @@ class_name ShaftHud
 @export var diagnostic_hint_label_path: NodePath
 @export var win_panel_path: NodePath
 
-var _state: LevelState
+var _state: Node  # sibling LevelState node; untyped to avoid parse-order issues
 var _max_rpm_for_bar: float = 120.0
 var _max_torque: float = 2.0
 var _sending: bool = false  # guard against feedback loop
 
-func bind(state: LevelState) -> void:
+func bind(state: Node) -> void:
 	_state = state
-	state.rpm_changed.connect(_on_rpm)
-	state.torque_changed.connect(_on_torque_remote)
-	state.target_changed.connect(_on_target)
-	state.diagnostic_changed.connect(_on_diagnostic)
-	state.won_changed.connect(_on_won)
+	state.connect("rpm_changed", _on_rpm)
+	state.connect("torque_changed", _on_torque_remote)
+	state.connect("target_changed", _on_target)
+	state.connect("diagnostic_changed", _on_diagnostic)
+	state.connect("won_changed", _on_won)
 	# Prime initial values.
 	_on_target(state.target_rpm)
 	_on_torque_remote(state.last_torque)
@@ -44,13 +43,13 @@ func _ready() -> void:
 	var owner_node: Node = get_parent()
 	if owner_node != null:
 		var candidate: Node = owner_node.get_node_or_null("LevelState")
-		if candidate is LevelState:
-			bind(candidate as LevelState)
+		if candidate != null and candidate.has_signal("rpm_changed"):
+			bind(candidate)
 
 func _on_slider_changed(value: float) -> void:
 	if _sending or _state == null:
 		return
-	var bc: Object = get_node_or_null("/root/BridgeClient")
+	var bc: Node = get_node_or_null("/root/Bridge")
 	if bc == null:
 		return
 	bc.send_action("set_torque", {"value": float(value)})
@@ -120,7 +119,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event.is_action_pressed("torque_down"):
 		_bump_torque(-0.05)
 	elif event.is_action_pressed("reset_level"):
-		var bc: Object = get_node_or_null("/root/BridgeClient")
+		var bc: Node = get_node_or_null("/root/Bridge")
 		if bc != null:
 			bc.send_action("reset", {})
 

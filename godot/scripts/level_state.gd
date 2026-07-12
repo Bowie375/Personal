@@ -1,8 +1,7 @@
 extends Node
-class_name LevelState
 
 ## Per-level sim state cached from the bridge.
-## One instance lives on each level scene; subscribes to BridgeClient.
+## One instance lives on each level scene; subscribes to the Bridge autoload.
 
 signal rpm_changed(rpm: float)
 signal angle_changed(angle: float)
@@ -19,13 +18,11 @@ var won: bool = false
 var diagnostic: Dictionary = {}
 
 func _ready() -> void:
-	# BridgeClient is autoloaded; safe to connect.
-	Engine.get_singleton("BridgeClient") if Engine.has_singleton("BridgeClient") else null
-	var bc: Object = get_node_or_null("/root/BridgeClient")
+	var bc: Node = get_node_or_null("/root/Bridge")
 	if bc == null:
-		push_error("LevelState: BridgeClient autoload not found")
+		push_error("LevelState: Bridge autoload not found")
 		return
-	bc.sim_state_received.connect(_on_sim_state)
+	bc.connect("sim_state_received", _on_sim_state)
 
 func _on_sim_state(state: Dictionary) -> void:
 	var extras: Dictionary = state.get("extras", {})

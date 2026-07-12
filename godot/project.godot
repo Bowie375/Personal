@@ -17,7 +17,7 @@ config/features=PackedStringArray("4.3", "Forward Plus")
 
 [autoload]
 
-BridgeClient="*res://scripts/bridge_client.gd"
+Bridge="*res://scripts/bridge_client.gd"
 
 [display]
 

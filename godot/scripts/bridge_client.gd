@@ -1,5 +1,4 @@
 extends Node
-class_name BridgeClient
 
 ## UDP client for talking to the Python backend.
 ## Sends player actions, receives sim-state ticks.
@@ -16,7 +15,7 @@ func _ready() -> void:
 	_socket = PacketPeerUDP.new()
 	var err: int = _socket.set_dest_address(HOST, PORT)
 	if err != OK:
-		push_error("BridgeClient: cannot set destination %s:%d (err %d)" % [HOST, PORT, err])
+		push_error("Bridge: cannot set destination %s:%d (err %d)" % [HOST, PORT, err])
 
 func send_action(action: String, payload: Dictionary = {}) -> void:
 	if _socket == null:

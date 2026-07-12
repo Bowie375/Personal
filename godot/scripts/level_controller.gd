@@ -6,10 +6,10 @@ extends Node
 @export var next_button_path: NodePath
 
 func _ready() -> void:
-	var bc: Object = get_node_or_null("/root/BridgeClient")
+	var bc: Node = get_node_or_null("/root/Bridge")
 	if bc == null:
 		return
-	bc.sim_state_received.connect(_on_state)
+	bc.connect("sim_state_received", _on_state)
 
 func _on_state(state: Dictionary) -> void:
 	var extras: Dictionary = state.get("extras", {})
