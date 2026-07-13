@@ -42,10 +42,11 @@ func _ready() -> void:
 	# Reorient the mesh's geometry axis (+Y) onto the requested spin_axis,
 	# but do NOT bake the current scale in — the assembly owns scale.
 	_orient = _compute_axis_quaternion(spin_axis)
-	transform = Transform3D(_orient, transform.origin)
 	# Preserve the scene's initial scale (set by the assembly / .tscn).
+	# (Godot 4: a Quaternion converts to a Basis via the Basis(q) ctor,
+	# not a get_basis() method.)
 	var s: Vector3 = transform.basis.get_scale()
-	transform = Transform3D(_orient.get_basis() * Basis.from_scale(s), transform.origin)
+	transform = Transform3D(Basis(_orient) * Basis.from_scale(s), transform.origin)
 	_state = get_node_or_null(state_path)
 	if _state == null:
 		return
@@ -92,7 +93,7 @@ func _on_joint(jid: int, _rpm: float, angle: float) -> void:
 		# baked _orient reorients that onto the requested world axis.
 		var live_scale: Vector3 = transform.basis.get_scale()
 		var spin: Quaternion = Quaternion(Vector3.UP, _angle)
-		var final_basis: Basis = (_orient * spin).get_basis() * Basis.from_scale(live_scale)
+		var final_basis: Basis = Basis(_orient * spin) * Basis.from_scale(live_scale)
 		transform = Transform3D(final_basis, transform.origin)
 
 func _on_gears(driver_t: int, driven_t: int) -> void:
@@ -255,4 +256,4 @@ static func _compute_axis_quaternion(axis: Vector3) -> Quaternion:
 # Kept for backward compat with any external caller (e.g. shaft_visual.gd
 # pattern). Returns the same reorientation as a Basis.
 static func _compute_axis_align(axis: Vector3) -> Basis:
-	return _compute_axis_quaternion(axis).get_basis()
+	return Basis(_compute_axis_quaternion(axis))

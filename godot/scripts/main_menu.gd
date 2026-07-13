@@ -41,8 +41,9 @@ func _rebuild_level_buttons() -> void:
 		btn.text = "%s — %s" % [lvl["id"], lvl["title"]]
 		btn.custom_minimum_size = Vector2(0, 48)
 		btn.disabled = not unlocked.get(lvl["id"], false)
+		var level_id: String = lvl["id"]
 		var scene_path: String = lvl["scene"]
-		btn.pressed.connect(func() -> void: _launch(scene_path))
+		btn.pressed.connect(func() -> void: _launch(level_id, scene_path))
 		_levels_box.add_child(btn)
 
 func _read_unlocked() -> Dictionary:
@@ -62,5 +63,11 @@ func _read_unlocked() -> Dictionary:
 			unlocked[str(id)] = true
 	return unlocked
 
-func _launch(scene_path: String) -> void:
+# Tell the bridge backend to switch to this level (single process serves all
+# levels now), then load the Godot scene. The backend rebuilds the active
+# level from its registry on receiving `set_level`.
+func _launch(level_id: String, scene_path: String) -> void:
+	var bc: Node = get_node_or_null("/root/Bridge")
+	if bc != null and bc.has_method("send_action"):
+		bc.send_action("set_level", {"id": level_id})
 	get_tree().change_scene_to_file(scene_path)

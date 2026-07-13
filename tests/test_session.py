@@ -165,3 +165,72 @@ def test_session_set_gears_action_swaps_pair(tmp_path: Path) -> None:
         assert sess.level.driven.teeth == 60
     finally:
         sess.stop()
+
+
+def test_session_set_level_swaps_active_level_at_runtime(tmp_path: Path) -> None:
+    """A single bridge process serves all levels: `set_level` rebuilds the
+    active level without restarting the backend."""
+    port = 19994
+    sess = LevelSession("1.1", profile=None, port=port, sim_hz=200.0)
+    sess.start()
+    try:
+        client = _make_client(port)
+        _send_action(client, "ping", {}, port)
+        # Start in 1.1 (shaft) — should be a ShaftLevel.
+        from robot_forge.levels.level_1_1 import ShaftLevel
+
+        assert isinstance(sess.level, ShaftLevel)
+        # Godot sends set_level to switch to 1.3 (three-gear).
+        _send_action(client, "set_level", {"id": "1.3"}, port)
+        time.sleep(0.15)
+        from robot_forge.levels.level_1_3 import ThreeGearLevel
+
+        assert isinstance(sess.level, ThreeGearLevel)
+        assert sess.level_id == "1.3"
+        # The new level is fresh (not the old 1.1 state).
+        assert sess.level.state.driven_omega == 0.0
+        client.close()
+    finally:
+        sess.stop()
+
+
+def test_session_boots_without_level_and_waits_for_set_level(tmp_path: Path) -> None:
+    """Omitting --level starts the bridge idle; it serves nothing until
+    Godot sends set_level. This is the normal-play path."""
+    port = 19993
+    sess = LevelSession(level_id=None, profile=None, port=port, sim_hz=200.0)
+    sess.start()
+    try:
+        client = _make_client(port)
+        _send_action(client, "ping", {}, port)
+        # No active level: other actions are ignored, not crashing.
+        _send_action(client, "set_torque", {"value": 1.0}, port)
+        time.sleep(0.1)
+        assert sess.level is None
+        # Now Godot picks 1.2.
+        _send_action(client, "set_level", {"id": "1.2"}, port)
+        time.sleep(0.15)
+        from robot_forge.levels.level_1_2 import TwoGearLevel
+
+        assert isinstance(sess.level, TwoGearLevel)
+        client.close()
+    finally:
+        sess.stop()
+
+
+def test_session_set_level_unknown_is_ignored(tmp_path: Path) -> None:
+    """Unknown level id is logged and ignored; the active level is untouched."""
+    port = 19992
+    sess = LevelSession("1.1", profile=None, port=port, sim_hz=200.0)
+    sess.start()
+    try:
+        client = _make_client(port)
+        _send_action(client, "ping", {}, port)
+        _send_action(client, "set_level", {"id": "9.9"}, port)
+        time.sleep(0.15)
+        # Still on 1.1.
+        assert sess.level_id == "1.1"
+        client.close()
+    finally:
+        sess.stop()
+
