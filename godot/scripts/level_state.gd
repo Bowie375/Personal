@@ -9,6 +9,7 @@ signal torque_changed(torque: float)
 signal target_changed(target_rpm: float)
 signal target_sign_changed(target_sign: int)
 signal gear_teeth_changed(driver_teeth: int, driven_teeth: int)
+signal gear_train_changed(driver_teeth: int, idler_teeth: int, driven_teeth: int)
 signal meshed_changed(meshed: bool)
 signal diagnostic_changed(diag: Dictionary)
 signal won_changed(won: bool)
@@ -23,6 +24,7 @@ var last_torque: float = 0.0
 var target_rpm: float = 60.0
 var target_sign: int = -1
 var driver_teeth: int = 0
+var idler_teeth: int = 0
 var driven_teeth: int = 0
 var center_distance: float = 0.0
 var meshed: bool = false
@@ -75,11 +77,17 @@ func _on_sim_state(state: Dictionary) -> void:
 		target_sign = new_sign
 		target_sign_changed.emit(new_sign)
 	var new_driver: int = int(extras.get("driver_teeth", 0))
+	var new_idler: int = int(extras.get("idler_teeth", 0))
 	var new_driven: int = int(extras.get("driven_teeth", 0))
 	if new_driver != driver_teeth or new_driven != driven_teeth:
 		driver_teeth = new_driver
+		idler_teeth = new_idler
 		driven_teeth = new_driven
+		# For backward compatibility with 1.2, always emit the 2-arg signal.
 		gear_teeth_changed.emit(new_driver, new_driven)
+		# For 1.3 (3-gear), also emit the 3-arg signal.
+		if new_idler > 0:
+			gear_train_changed.emit(new_driver, new_idler, new_driven)
 	var new_center_distance: float = float(extras.get("center_distance", 0.0))
 	center_distance = new_center_distance  # always update; consumers compare
 	var new_meshed: bool = bool(extras.get("meshed", true))

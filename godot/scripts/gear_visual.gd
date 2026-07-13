@@ -23,6 +23,10 @@ const GEAR_THICKNESS := 0.4
 # (since the real addendum would make outer radii sum to > center
 # distance). 0.8 leaves a small visible gap between meshing gears.
 const VISUAL_TIP_FACTOR := 0.8
+# Mesh is built in *normalized* units: pitch radius = 1.0. The
+# GearAssembly applies the real-world scale (pitch_r * VISUAL_SCALE) so
+# the gear fits the 3D viewport regardless of tooth count.
+const MESH_PITCH_RADIUS := 1.0
 
 var _state: Node
 var _angle: float = 0.0
@@ -45,8 +49,11 @@ func _ready() -> void:
 	_initial_teeth_from_state()
 
 func _initial_teeth_from_state() -> void:
-	var driver_t: int = int(_state.get("driver_teeth", 0))
-	var driven_t: int = int(_state.get("driven_teeth", 0))
+	# GDScript Object.get() takes a single argument and returns null if the
+	# property is absent; there is no dict-style default. Use the property
+	# name and coerce a null to 0.
+	var driver_t: int = int(_state.get("driver_teeth"))
+	var driven_t: int = int(_state.get("driven_teeth"))
 	var t: int = driver_t if joint_id == 0 else driven_t
 	if t <= 0:
 		t = 30  # safe default if bridge hasn't sent state yet
@@ -56,8 +63,13 @@ func _initial_teeth_from_state() -> void:
 func _on_joint(jid: int, _rpm: float, angle: float) -> void:
 	if jid == joint_id:
 		_angle = angle
-		var axis: Vector3 = spin_axis.normalized()
-		transform.basis = _world_basis * _axis_align * Basis(axis, _angle)
+		# The mesh is built with its disc-face normal along mesh-local +Y
+		# (gear is in the XZ plane, thickness on Y). To spin the disc in
+		# place, we must rotate around its own normal (+Y in mesh-local),
+		# not around the world spin_axis vector — that would tumble the
+		# disc around an edge. The _axis_align basis then reorients that
+		# spin onto the requested world axis.
+		transform.basis = _world_basis * _axis_align * Basis(Vector3.UP, _angle)
 
 func _on_gears(driver_t: int, driven_t: int) -> void:
 	var t: int = driver_t if joint_id == 0 else driven_t
@@ -68,27 +80,36 @@ func _on_gears(driver_t: int, driven_t: int) -> void:
 func _rebuild_mesh() -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_build_gear_surface(st, _teeth, GEAR_MODULE, GEAR_THICKNESS)
+	# set_color must come before the first add_vertex so the format
+	# includes ARRAY_FORMAT_COLOR (Godot 4 SurfaceTool).
 	st.set_color(gear_color)
+	_build_gear_surface_normalized(st, _teeth)
 	st.generate_normals()
 	mesh = st.commit()
 
-# Procedural spur-gear geometry. The gear is a flat disc in the XZ plane
-# with its axis along +Y — same convention as a Godot CylinderMesh. The
-# _axis_align basis then reorients Y → spin_axis so the disc spins flat
-# around the chosen world axis.
+# Procedural spur-gear geometry, built in *normalized* units (pitch
+# radius = 1.0). The MeshInstance3D's `scale` is set by the
+# GearAssembly to `pitch_r * VISUAL_SCALE` so the gear fits the 3D
+# viewport regardless of tooth count.
 #
-# Per tooth: a trapezoid with its bottom on the root circle and its
-# top on the outer circle. Plus a hub hole through the center.
-func _build_gear_surface(
-	st: SurfaceTool, p_teeth: int, p_module: float, p_thickness: float
-) -> void:
-	var pitch_r: float = p_module * p_teeth / 2.0
+# The gear is a flat disc in the XZ plane with its axis along +Y — same
+# convention as a Godot CylinderMesh. The _axis_align basis then
+# reorients Y → spin_axis so the disc spins flat around the chosen world
+# axis.
+#
+# Per tooth: a trapezoid with its bottom on the root circle and its top
+# on the outer circle. Plus a hub hole through the center.
+func _build_gear_surface_normalized(st: SurfaceTool, p_teeth: int) -> void:
+	# In normalized units, module and tooth count only matter for the
+	# tooth-vs-hub proportions; the outer envelope is unit-radius.
+	var pitch_r: float = MESH_PITCH_RADIUS
 	# Visual outer is < pitch_r + addendum to keep meshing gears apart.
 	var outer_r: float = pitch_r * VISUAL_TIP_FACTOR
 	var root_r: float = outer_r * 0.85
-	var hub_r: float = max(p_module * 0.8, root_r * 0.25)
-	var half_t: float = p_thickness * 0.5
+	# Hub radius scales with module (tooth size), not pitch diameter, so
+	# small gears still have a visible bore.
+	var hub_r: float = clamp(0.15 * outer_r, 0.04, 0.25)
+	var half_t: float = GEAR_THICKNESS * 0.5
 	var tooth_angle: float = TAU / float(p_teeth)
 	var tooth_w: float = tooth_angle * 0.5 * 0.5  # half-width of one tooth
 

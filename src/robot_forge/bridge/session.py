@@ -13,6 +13,8 @@ from robot_forge.levels.level_1_1 import DT as DT_1_1
 from robot_forge.levels.level_1_1 import ShaftLevel
 from robot_forge.levels.level_1_2 import DT as DT_1_2
 from robot_forge.levels.level_1_2 import TwoGearLevel
+from robot_forge.levels.level_1_3 import DT as DT_1_3
+from robot_forge.levels.level_1_3 import ThreeGearLevel
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +51,13 @@ def _summary_1_2(level: TwoGearLevel) -> dict:
     return s
 
 
+def _summary_1_3(level: ThreeGearLevel) -> dict:
+    s = level.summary()
+    # Ensure target_sign is present for the bridge payload.
+    s.setdefault("target_sign", level.target_sign)
+    return s
+
+
 class LevelSession:
     """Owns one level instance, runs the sim in a thread, syncs to bridge."""
 
@@ -73,6 +82,8 @@ class LevelSession:
             return ShaftLevel()
         if level_id == "1.2":
             return TwoGearLevel()
+        if level_id == "1.3":
+            return ThreeGearLevel()
         raise ValueError(f"Unknown level: {level_id}")
 
     def _on_action(self, action) -> None:
@@ -85,7 +96,13 @@ class LevelSession:
         elif name == ACTION_SET_GEARS and hasattr(self.level, "set_gears"):
             d = int(payload.get("driver", 0))
             dn = int(payload.get("driven", 0))
-            if d > 0 and dn > 0:
+            idler = int(payload.get("idler", 0))
+            if idler > 0:
+                # Three-gear level (1.3)
+                if d > 0 and dn > 0:
+                    self.level.set_gears(driver_teeth=d, idler_teeth=idler, driven_teeth=dn)
+            elif d > 0 and dn > 0:
+                # Two-gear level (1.2)
                 self.level.set_gears(driver_teeth=d, driven_teeth=dn)
         elif name == ACTION_RESET:
             self.level = self._build_level(self.level_id)
@@ -122,11 +139,16 @@ class LevelSession:
             if now - last < self._sim_period:
                 time.sleep(self._sim_period - (now - last))
             last = time.perf_counter()
-            dt = DT_1_2 if self.level_id == "1.2" else DT_1_1
+            if self.level_id == "1.2":
+                dt = DT_1_2
+                extras = _summary_1_2(self.level)
+            elif self.level_id == "1.3":
+                dt = DT_1_3
+                extras = _summary_1_3(self.level)
+            else:
+                dt = DT_1_1
+                extras = _summary_1_1(self.level)
             self.level.step(dt)
-            extras = (
-                _summary_1_2(self.level) if self.level_id == "1.2" else _summary_1_1(self.level)
-            )
             joints = self._joints_for(self.level_id, self.level)
             self.bridge.broadcast(
                 SimState(timestamp=extras.get("t", 0.0), joints=joints, extras=extras)
@@ -137,6 +159,12 @@ class LevelSession:
             return [
                 {"id": 0, "rpm": level.driver_rpm, "angle": level.state.driver_angle},
                 {"id": 1, "rpm": level.driven_rpm, "angle": level.state.driven_angle},
+            ]
+        if level_id == "1.3":
+            return [
+                {"id": 0, "rpm": level.driver_rpm, "angle": level.state.driver_angle},
+                {"id": 1, "rpm": level.idler_rpm, "angle": level.state.idler_angle},
+                {"id": 2, "rpm": level.driven_rpm, "angle": level.state.driven_angle},
             ]
         # Default: 1.1 — single shaft.
         return [{"id": 0, "rpm": level.rpm, "angle": level.state.angle_rad}]
