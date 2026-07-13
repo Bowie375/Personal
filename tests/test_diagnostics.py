@@ -7,6 +7,7 @@ from robot_forge.levels.diagnostics import (
     diagnose_direction,
     diagnose_ratio,
     diagnose_rpm,
+    diagnose_rpm_shaft,
     settle_diagnostic,
     slip_diagnostic,
 )
@@ -88,3 +89,20 @@ def test_slip_diagnostic() -> None:
     d = slip_diagnostic(slip_detected=True)
     assert d is not None
     assert d.kind == DiagKind.SLIPPED
+
+
+def test_shaft_hint_has_no_gear_vocabulary() -> None:
+    """1.1 must not leak gear-level hints ('driven gear', 'teeth')."""
+    d = diagnose_rpm_shaft(measured=120.0, target=60.0, tol=3.0)
+    assert d is not None
+    assert d.kind == DiagKind.TOO_FAST
+    assert "gear" not in d.hint.lower()
+    assert "teeth" not in d.hint.lower()
+    assert "shaft" in d.message.lower()
+
+
+def test_shaft_too_slow_hint() -> None:
+    d = diagnose_rpm_shaft(measured=20.0, target=60.0, tol=3.0)
+    assert d is not None
+    assert d.kind == DiagKind.TOO_SLOW
+    assert "torque" in d.hint.lower()

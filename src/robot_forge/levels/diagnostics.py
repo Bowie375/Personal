@@ -76,6 +76,28 @@ def diagnose_ratio(
     )
 
 
+def diagnose_rpm_shaft(measured: float, target: float, tol: float) -> Diagnostic | None:
+    """Like diagnose_rpm, but with hints tailored to a single spinning shaft
+    (Act 1.1) — no gear vocabulary. Used so the gear-level hints in
+    diagnose_rpm don't leak into the shaft level.
+    """
+    err = measured - target
+    if abs(err) <= tol:
+        return None
+    if err < 0:
+        return Diagnostic(
+            kind=DiagKind.TOO_SLOW,
+            message=f"Shaft: {measured:.1f} RPM, target {target:.1f} RPM ({err:+.1f}).",
+            hint="Increase motor torque. The shaft takes time to spin up — "
+            "torque overcomes bearing drag and inertia.",
+        )
+    return Diagnostic(
+        kind=DiagKind.TOO_FAST,
+        message=f"Shaft: {measured:.1f} RPM, target {target:.1f} RPM ({err:+.1f}).",
+        hint="Reduce motor torque to slow the shaft down.",
+    )
+
+
 def diagnose_direction(measured: float, expected_sign: int) -> Diagnostic | None:
     """Expected sign is +1 or -1. If measured sign disagrees, return a diagnostic."""
     if measured == 0:

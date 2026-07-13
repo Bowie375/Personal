@@ -15,7 +15,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from robot_forge.levels.diagnostics import Diagnostic, diagnose_rpm
+from robot_forge.levels.diagnostics import Diagnostic, diagnose_rpm_shaft
 
 # Real-world defaults (sim units, m-kg-s):
 # Time constant tau = I/b. Pick so the player sees a clear spin-up but reaches
@@ -85,7 +85,7 @@ class ShaftLevel:
         self._check_win()
 
     def _check_win(self) -> None:
-        d = diagnose_rpm(self.rpm, self.target_rpm, self.tolerance_rpm)
+        d = diagnose_rpm_shaft(self.rpm, self.target_rpm, self.tolerance_rpm)
         if d is None:
             self.state.settled_time += DT
             if self.state.settled_time >= self.settle_time_s:
