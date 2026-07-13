@@ -10,7 +10,6 @@ from pathlib import Path
 import pytest
 
 from robot_forge.bridge.session import (
-    ACTION_SET_TORQUE,
     ACTION_SET_VOLTAGE,
     LevelSession,
 )
@@ -47,10 +46,15 @@ def test_session_drives_level_and_saves_profile(tmp_path: Path) -> None:
         client = _make_client(port)
         # Register as a client.
         _send_action(client, "ping", {}, port)
-        # Apply the correct torque and let the sim run.
-        from robot_forge.levels.level_1_1 import solve_steady_state_torque
+        # Apply the correct voltage and let the sim run.
+        from robot_forge.levels.level_1_1 import solve_steady_state_voltage
 
-        _send_action(client, ACTION_SET_TORQUE, {"value": solve_steady_state_torque() * 1.05}, port)
+        _send_action(
+            client,
+            ACTION_SET_VOLTAGE,
+            {"value": solve_steady_state_voltage() * 1.05},
+            port,
+        )
         # Collect states until we see won=True (max 6s).
         deadline = time.time() + 6.0
         states = []
@@ -84,7 +88,7 @@ def test_session_handles_reset_action(tmp_path: Path) -> None:
     try:
         client = _make_client(port)
         _send_action(client, "ping", {}, port)
-        _send_action(client, ACTION_SET_TORQUE, {"value": 1.0}, port)
+        _send_action(client, ACTION_SET_VOLTAGE, {"value": 8.0}, port)
         time.sleep(0.2)
         before = sess.level.state.angle_rad
         _send_action(client, "reset", {}, port)
@@ -108,7 +112,7 @@ def test_session_clamps_unknown_action(tmp_path: Path) -> None:
         time.sleep(0.1)
         client.close()
         # No crash, level state still pristine.
-        assert sess.level.applied_torque == 0.0
+        assert sess.level.applied_voltage == 0.0
     finally:
         sess.stop()
 
@@ -204,7 +208,7 @@ def test_session_boots_without_level_and_waits_for_set_level(tmp_path: Path) -> 
         client = _make_client(port)
         _send_action(client, "ping", {}, port)
         # No active level: other actions are ignored, not crashing.
-        _send_action(client, "set_torque", {"value": 1.0}, port)
+        _send_action(client, "set_voltage", {"value": 8.0}, port)
         time.sleep(0.1)
         assert sess.level is None
         # Now Godot picks 1.2.

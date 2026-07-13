@@ -34,6 +34,7 @@ ACTION_SET_TORQUE = "set_torque"
 ACTION_SET_VOLTAGE = "set_voltage"
 ACTION_SET_GEARS = "set_gears"
 ACTION_SET_LEVEL = "set_level"
+ACTION_SET_PARAMS = "set_params"
 ACTION_RESET = "reset"
 ACTION_PING = "ping"
 
@@ -54,7 +55,12 @@ def _summary_1_1(level: ShaftLevel) -> dict:
         "driven_rpm": level.rpm,
         "target_driven_rpm": level.target_rpm,
         "torque": level.applied_torque,
-        "voltage": 0.0,
+        "voltage": level.applied_voltage,
+        "kt": level.kt,
+        "kb": level.kb,
+        "resistance": level.resistance,
+        "inertia": level.inertia,
+        "damping": level.damping,
         "meshed": True,
         "won": level.won,
         "driver_teeth": 0,
@@ -164,6 +170,15 @@ class LevelSession:
             level.set_torque(float(payload.get("value", 0.0)))
         elif name == ACTION_SET_VOLTAGE and hasattr(level, "set_voltage"):
             level.set_voltage(float(payload.get("value", 0.0)))
+        elif name == ACTION_SET_PARAMS and hasattr(level, "set_params"):
+            # 1.1 exposes motor + mechanical params for the player to tune.
+            level.set_params(
+                kt=float(payload.get("kt", level.kt)),
+                kb=float(payload.get("kb", level.kb)),
+                resistance=float(payload.get("resistance", level.resistance)),
+                inertia=float(payload.get("inertia", level.inertia)),
+                damping=float(payload.get("damping", level.damping)),
+            )
         elif name == ACTION_SET_GEARS and hasattr(level, "set_gears"):
             d = int(payload.get("driver", 0))
             dn = int(payload.get("driven", 0))

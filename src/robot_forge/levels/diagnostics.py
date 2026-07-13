@@ -79,7 +79,8 @@ def diagnose_ratio(
 def diagnose_rpm_shaft(measured: float, target: float, tol: float) -> Diagnostic | None:
     """Like diagnose_rpm, but with hints tailored to a single spinning shaft
     (Act 1.1) — no gear vocabulary. Used so the gear-level hints in
-    diagnose_rpm don't leak into the shaft level.
+    diagnose_rpm don't leak into the shaft level. Copy references voltage and
+    the tunable motor params (Kt, Kb, R, I, b) since 1.1 exposes them.
     """
     err = measured - target
     if abs(err) <= tol:
@@ -88,13 +89,15 @@ def diagnose_rpm_shaft(measured: float, target: float, tol: float) -> Diagnostic
         return Diagnostic(
             kind=DiagKind.TOO_SLOW,
             message=f"Shaft: {measured:.1f} RPM, target {target:.1f} RPM ({err:+.1f}).",
-            hint="Increase motor torque. The shaft takes time to spin up — "
-            "torque overcomes bearing drag and inertia.",
+            hint="Increase voltage, raise Kt (torque constant), reduce bearing "
+            "drag (b), or lower resistance (R). The shaft takes time to spin "
+            "up — inertia (I) affects how fast, not where it settles.",
         )
     return Diagnostic(
         kind=DiagKind.TOO_FAST,
         message=f"Shaft: {measured:.1f} RPM, target {target:.1f} RPM ({err:+.1f}).",
-        hint="Reduce motor torque to slow the shaft down.",
+        hint="Reduce voltage to slow the motor down. Back-EMF (Kb) also caps "
+        "top speed — raise Kb for a lower terminal RPM.",
     )
 
 
