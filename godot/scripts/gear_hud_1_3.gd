@@ -39,10 +39,10 @@ func bind(state: Node) -> void:
 	state.connect("diagnostic_changed", _on_diagnostic)
 	state.connect("won_changed", _on_won)
 	state.connect("joint_changed", _on_joint)
-	# Prime.
+	# Prime. For 1.3, meshed is always true (uniform module catalog).
 	_on_target(state.target_rpm)
 	_on_gears(state.driver_teeth, state.idler_teeth, state.driven_teeth)
-	_on_meshed(state.meshed)
+	_on_meshed(true)  # 1.3 always meshes
 	_on_voltage_remote(state.last_voltage)
 
 func _ready() -> void:
