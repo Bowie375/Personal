@@ -30,14 +30,22 @@ const MESH_PITCH_RADIUS := 1.0
 
 var _state: Node
 var _angle: float = 0.0
-var _world_basis: Basis
-var _axis_align: Basis
+# Orientation baked at _ready: the Y→spin_axis reorientation. We keep
+# this as a Quaternion so the spin composes rotation WITHOUT clobbering
+# the Node3D scale that GearAssembly/GearTrain sets (scale = pitch_r *
+# VISUAL_SCALE, which depends on tooth count). Overwriting transform.basis
+# would discard that scale and freeze the gear at its initial radius.
+var _orient: Quaternion
 var _teeth: int = 0
 
 func _ready() -> void:
-	_world_basis = transform.basis
-	_axis_align = _compute_axis_align(spin_axis)
-	transform.basis = _world_basis * _axis_align
+	# Reorient the mesh's geometry axis (+Y) onto the requested spin_axis,
+	# but do NOT bake the current scale in — the assembly owns scale.
+	_orient = _compute_axis_quaternion(spin_axis)
+	transform = Transform3D(_orient, transform.origin)
+	# Preserve the scene's initial scale (set by the assembly / .tscn).
+	var s: Vector3 = transform.basis.get_scale()
+	transform = Transform3D(_orient.get_basis() * Basis.from_scale(s), transform.origin)
 	_state = get_node_or_null(state_path)
 	if _state == null:
 		return
@@ -52,12 +60,22 @@ func _ready() -> void:
 	_initial_teeth_from_state()
 
 func _initial_teeth_from_state() -> void:
-	# GDScript Object.get() takes a single argument and returns null if the
-	# property is absent; there is no dict-style default. Use the property
-	# name and coerce a null to 0.
-	var driver_t: int = int(_state.get("driver_teeth"))
-	var driven_t: int = int(_state.get("driven_teeth"))
-	var t: int = driver_t if joint_id == 0 else driven_t
+	# Pick the tooth count for THIS joint. For 1.3, joint_id 1 is the
+	# idler — read idler_teeth, not driven_teeth (the old 2-arg path
+	# would have given the idler the driven's count on first build).
+	var driver_t_raw = _state.get("driver_teeth")
+	var idler_t_raw = _state.get("idler_teeth")
+	var driven_t_raw = _state.get("driven_teeth")
+	var driver_t: int = int(driver_t_raw) if driver_t_raw != null else 0
+	var idler_t: int = int(idler_t_raw) if idler_t_raw != null else 0
+	var driven_t: int = int(driven_t_raw) if driven_t_raw != null else 0
+	var t: int
+	if joint_id == 0:
+		t = driver_t
+	elif joint_id == 1:
+		t = idler_t if idler_t > 0 else driven_t  # idler; fall back for 1.2
+	else:
+		t = driven_t
 	if t <= 0:
 		t = 30  # safe default if bridge hasn't sent state yet
 	_teeth = t
@@ -66,13 +84,16 @@ func _initial_teeth_from_state() -> void:
 func _on_joint(jid: int, _rpm: float, angle: float) -> void:
 	if jid == joint_id:
 		_angle = angle
-		# The mesh is built with its disc-face normal along mesh-local +Y
-		# (gear is in the XZ plane, thickness on Y). To spin the disc in
-		# place, we must rotate around its own normal (+Y in mesh-local),
-		# not around the world spin_axis vector — that would tumble the
-		# disc around an edge. The _axis_align basis then reorients that
-		# spin onto the requested world axis.
-		transform.basis = _world_basis * _axis_align * Basis(Vector3.UP, _angle)
+		# Apply the spin as a Quaternion composed onto the baked orientation.
+		# Because we keep the Node3D's scale separate (read live from the
+		# current basis), the gear's radius — which the assembly scales by
+		# pitch_r * VISUAL_SCALE — survives the spin. Spinning around the
+		# mesh-local +Y normal keeps the disc spinning in place; the
+		# baked _orient reorients that onto the requested world axis.
+		var live_scale: Vector3 = transform.basis.get_scale()
+		var spin: Quaternion = Quaternion(Vector3.UP, _angle)
+		var final_basis: Basis = (_orient * spin).get_basis() * Basis.from_scale(live_scale)
+		transform = Transform3D(final_basis, transform.origin)
 
 func _on_gears(driver_t: int, driven_t: int) -> void:
 	# 1.2 (2-gear) callback: joint_id 0=driver, 1=driven.
@@ -218,13 +239,20 @@ func _build_gear_surface_normalized(st: SurfaceTool, p_teeth: int) -> void:
 		st.set_normal(n)
 		st.add_vertex(p1_bot)
 
-static func _compute_axis_align(axis: Vector3) -> Basis:
+# Reorient the mesh's geometry axis (+Y) onto `axis`. Returned as a
+# Quaternion (pure rotation, no scale) so callers can compose spins
+# without baking in the Node3D scale.
+static func _compute_axis_quaternion(axis: Vector3) -> Quaternion:
 	var a: Vector3 = axis.normalized()
 	if a.is_zero_approx():
-		return Basis.IDENTITY
+		return Quaternion.IDENTITY
 	if a == Vector3.UP:
-		return Basis.IDENTITY
+		return Quaternion.IDENTITY
 	if a == -Vector3.UP:
-		return Basis(Vector3.RIGHT, PI)
-	var q: Quaternion = Quaternion(Vector3.UP, a)
-	return Basis(q)
+		return Quaternion(Vector3.RIGHT, PI)
+	return Quaternion(Vector3.UP, a)
+
+# Kept for backward compat with any external caller (e.g. shaft_visual.gd
+# pattern). Returns the same reorientation as a Basis.
+static func _compute_axis_align(axis: Vector3) -> Basis:
+	return _compute_axis_quaternion(axis).get_basis()
