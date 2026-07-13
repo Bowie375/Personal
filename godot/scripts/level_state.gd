@@ -98,7 +98,10 @@ func _on_sim_state(state: Dictionary) -> void:
 	if new_won != won:
 		won = new_won
 		won_changed.emit(new_won)
-	var new_diag: Dictionary = extras.get("diagnostic", {})
+	var diag_raw: Variant = extras.get("diagnostic", {})
+	# Python sends null when there's no diagnostic; the .get() default only
+	# applies when the key is absent, not when it's explicitly null. Coerce.
+	var new_diag: Dictionary = diag_raw if diag_raw is Dictionary else {}
 	if new_diag != diagnostic:
 		diagnostic = new_diag
 		diagnostic_changed.emit(new_diag)
