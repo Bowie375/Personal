@@ -45,6 +45,9 @@ func _ready() -> void:
 		_state.connect("joint_changed", _on_joint)
 	if _state.has_signal("gear_teeth_changed"):
 		_state.connect("gear_teeth_changed", _on_gears)
+	# 1.3: listen to 3-gear signal for correct idler tooth count.
+	if _state.has_signal("gear_train_changed"):
+		_state.connect("gear_train_changed", _on_gears_train)
 	# If the state already has a tooth count, build the mesh now.
 	_initial_teeth_from_state()
 
@@ -72,7 +75,21 @@ func _on_joint(jid: int, _rpm: float, angle: float) -> void:
 		transform.basis = _world_basis * _axis_align * Basis(Vector3.UP, _angle)
 
 func _on_gears(driver_t: int, driven_t: int) -> void:
+	# 1.2 (2-gear) callback: joint_id 0=driver, 1=driven.
 	var t: int = driver_t if joint_id == 0 else driven_t
+	if t > 0 and t != _teeth:
+		_teeth = t
+		_rebuild_mesh()
+
+func _on_gears_train(driver_t: int, idler_t: int, driven_t: int) -> void:
+	# 1.3 (3-gear) callback: joint_id 0=driver, 1=idler, 2=driven.
+	var t: int
+	if joint_id == 0:
+		t = driver_t
+	elif joint_id == 1:
+		t = idler_t
+	else:
+		t = driven_t
 	if t > 0 and t != _teeth:
 		_teeth = t
 		_rebuild_mesh()

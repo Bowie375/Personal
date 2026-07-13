@@ -79,7 +79,7 @@ func _on_sim_state(state: Dictionary) -> void:
 	var new_driver: int = int(extras.get("driver_teeth", 0))
 	var new_idler: int = int(extras.get("idler_teeth", 0))
 	var new_driven: int = int(extras.get("driven_teeth", 0))
-	if new_driver != driver_teeth or new_driven != driven_teeth:
+	if new_driver != driver_teeth or new_idler != idler_teeth or new_driven != driven_teeth:
 		driver_teeth = new_driver
 		idler_teeth = new_idler
 		driven_teeth = new_driven

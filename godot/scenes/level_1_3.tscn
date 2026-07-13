@@ -66,7 +66,7 @@ spin_axis = Vector3(0, 0, 1)
 gear_color = Color(0.7, 0.65, 0.45, 1)
 
 [node name="IdlerGear" type="MeshInstance3D" parent="GearTrain"]
-transform = Transform3D(0.3, 0, 0, 0, 0.3, 0, 0, 0, 0.3, 0, 1, 0)
+transform = Transform3D(0.45, 0, 0, 0, 0.45, 0, 0, 0, 0.45, 0, 1, 0)
 script = ExtResource("3_visual")
 state_path = NodePath("../../LevelState")
 joint_id = 1

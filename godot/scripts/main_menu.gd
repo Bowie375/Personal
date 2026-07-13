@@ -6,6 +6,7 @@ extends Control
 const LEVELS: Array = [
 	{"id": "1.1", "title": "Spinning Shaft", "scene": "res://scenes/level_1_1.tscn"},
 	{"id": "1.2", "title": "Two Gears", "scene": "res://scenes/level_1_2.tscn"},
+	{"id": "1.3", "title": "Idler Gear", "scene": "res://scenes/level_1_3.tscn"},
 ]
 const PROFILE_PATH: String = "user://profile_mirror.json"  # Godot side mirror
 const PYTHON_PROFILE: String = "/home/xiaobowen/.local/share/robot-forge/profile.json"
