@@ -19,6 +19,9 @@ wheels/
 .DS_Store
 *.swp
 
+# Claude Code (local settings + transient session plans — machine/personal)
+.claude/
+
 # Sim artifacts
 *.urdf~
 *.stl~

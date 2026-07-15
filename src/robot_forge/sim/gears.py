@@ -4,8 +4,15 @@ Real-world gear geometry is governed by the module m = d / N (pitch_diameter / t
 For two meshing gears, the module must match. We use a small standard module so all
 gears in the catalog mesh.
 
-Act 2.3 will use planetary gear ratios: (1 + N_ring / N_sun) for a simple planetary,
-or the Willis formula for compound planets.
+Act 2.2 uses planetary gear ratios. A simple planetary has three co-axial
+members (sun, ring, carrier) and idler planets between sun (external mesh)
+and ring (internal mesh). The Willis equation ties the three member speeds
+once one is grounded:
+
+    (w_sun - w_carrier) / (w_ring - w_carrier) = -N_ring / N_sun
+
+Grounding one member and driving a second leaves the third as output — the
+SAME gearset gives three different ratios. See ``planetary_gear_ratio``.
 """
 
 from __future__ import annotations
@@ -92,12 +99,60 @@ def mesh_sign(num_external_meshes: int) -> int:
     return -1 if num_external_meshes % 2 == 1 else 1
 
 
+def planetary_gear_ratio(sun: SpurGear, ring: SpurGear, mode: str = "ring_fixed") -> float:
+    """Signed output-speed / input-speed ratio for a simple planetary set.
+
+    The three co-axial members are sun (S), ring (R), carrier (C). Planets
+    idler between sun (external mesh — flips sign) and ring (internal mesh —
+    no flip), so *relative to the carrier* the sun and ring counter-rotate:
+
+        (w_sun - w_C) / (w_R - w_C) = -N_R / N_S            (Willis)
+
+    Grounding one member and driving a second leaves the third as the output.
+    The SAME gearset therefore yields three different ratios — the whole
+    reason planetary boxes are the standard robot-joint reducer.
+
+    Returns ``w_output / w_input`` (signed: + same direction as the input,
+    - opposite). Input is always the sun (the motor shaft); the output and
+    grounded member depend on ``mode``:
+
+    - ``"ring_fixed"``    (default): ring pinned, sun drives, carrier out.
+      ``w_C = w_S * N_S/(N_S+N_R)``  ->  ratio = 1 + N_R/N_S  (>1, reduction,
+      same direction as the sun). The classic robot-joint reducer.
+    - ``"sun_fixed"``     : sun pinned, ring drives, carrier out.
+      ``w_C = w_R * N_R/(N_S+N_R)``  ->  ratio = (1 + N_S/N_R) from ring→carrier.
+      But the motor drives the SUN; with the sun pinned it can't be the input,
+      so this mode is only reachable when the player drives the ring. We still
+      return the carrier-vs-sun ratio = 1 + N_S/N_R for diagnostics.
+    - ``"carrier_fixed"`` : carrier pinned, sun drives, ring out — a REVERSING
+      gearbox. ``w_R = -w_S * N_S/N_R``  ->  ratio = -N_R/N_S (opposite
+      direction). Smaller magnitude; used in robot wrists to flip direction
+      compactly.
+
+    Magnitudes only depend on the tooth counts; the sign encodes direction.
+    """
+    ns = sun.teeth
+    nr = ring.teeth
+    if mode == "ring_fixed":
+        # w_C = w_S * N_S/(N_S+N_R)  =>  w_C/w_S = N_S/(N_S+N_R)
+        # The "reduction" (input over output) is (N_S+N_R)/N_S = 1 + N_R/N_S.
+        return (ns + nr) / ns
+    if mode == "sun_fixed":
+        # Motor on the ring (sun grounded): w_C = w_R * N_R/(N_S+N_R).
+        # Expressed as carrier-vs-sun would-be ratio (sun is the "input" axis):
+        #   w_C / w_S (if sun were free and driven) = N_S/(N_S+N_R) for ring fixed.
+        # Here sun is fixed, so the sun->carrier ratio becomes 1 + N_S/N_R.
+        return (ns + nr) / nr
+    if mode == "carrier_fixed":
+        # w_R = -w_S * N_S/N_R  ->  output (ring) / input (sun) = -N_R/N_S.
+        return -nr / ns
+    raise ValueError(f"unknown planetary mode: {mode!r}")
+
+
 def planetary_ratio(sun: SpurGear, ring: SpurGear) -> float:
-    """Simple planetary: carrier fixed, sun drives, ring driven, or vice versa.
-    With carrier fixed: w_sun * N_sun + w_ring * N_ring = 0  =>  ratio = -N_ring / N_sun.
-    With ring fixed (sun drives, carrier driven):
-        w_carrier = w_sun * N_sun / (N_sun + N_ring).
-    Returns the carrier/output ratio when ring is fixed (the most common case).
+    """Back-compat: ring-fixed carrier/sun speed fraction (the output speed
+    as a fraction of the sun's, i.e. 1/reduction). New code should use
+    ``planetary_gear_ratio`` which returns the signed reduction directly.
     """
     return sun.teeth / (sun.teeth + ring.teeth)
 
@@ -122,7 +177,11 @@ if __name__ == "__main__":
     print("Catalog pitches:", [(k, v.pitch_radius) for k, v in CATALOG.items()])
     print("N20 drives N40 -> ratio", gear_ratio(CATALOG["N20"], CATALOG["N40"]))
     print(
-        "Planetary N20 sun + N60 ring (ring fixed):",
-        planetary_ratio(CATALOG["N20"], CATALOG["N60"]),
+        "Planetary N12 sun + N60 ring (ring fixed, reduction):",
+        planetary_gear_ratio(CATALOG["N12"], CATALOG["N60"], "ring_fixed"),
+    )
+    print(
+        "Planetary N12 sun + N60 ring (carrier fixed, reversing):",
+        planetary_gear_ratio(CATALOG["N12"], CATALOG["N60"], "carrier_fixed"),
     )
     print("3:1 target combos:", find_ratio_combo(3.0))

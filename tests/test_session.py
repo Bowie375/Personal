@@ -10,6 +10,9 @@ from pathlib import Path
 import pytest
 
 from robot_forge.bridge.session import (
+    ACTION_SET_JOINT_VOLTAGE,
+    ACTION_SET_LOAD,
+    ACTION_SET_MODE,
     ACTION_SET_VOLTAGE,
     LevelSession,
 )
@@ -238,3 +241,232 @@ def test_session_set_level_unknown_is_ignored(tmp_path: Path) -> None:
     finally:
         sess.stop()
 
+
+def test_session_runs_level_1_4_and_wins(tmp_path: Path) -> None:
+    """End-to-end for Act 1.4: load + voltage + reduction drives the job to target."""
+    profile_path = tmp_path / "profile_14.json"
+    port = 19989
+    profile = ProfileStore(profile_path)
+    sess = LevelSession("1.4", profile=profile, port=port, sim_hz=200.0)
+    sess.start()
+    try:
+        client = _make_client(port)
+        _send_action(client, "ping", {}, port)
+        from robot_forge.levels.level_1_4 import solve_driving_voltage_1_4
+
+        # Gear down to N20/N40 so the reflected load is within the motor's torque.
+        _send_action(client, "set_gears", {"driver": 20, "driven": 40}, port)
+        time.sleep(0.1)
+        # Set the load to the target job.
+        _send_action(client, ACTION_SET_LOAD, {"value": sess.level.target_load_torque}, port)
+        time.sleep(0.1)
+        v = solve_driving_voltage_1_4(
+            sess.level.target_driven_rpm,
+            sess.level.driver,
+            sess.level.driven,
+            sess.level.target_load_torque,
+        )
+        _send_action(client, ACTION_SET_VOLTAGE, {"value": abs(v) * 1.01}, port)
+        deadline = time.time() + 14.0
+        states: list[dict] = []
+        while time.time() < deadline:
+            try:
+                client.settimeout(0.5)
+                data, _ = client.recvfrom(65535)
+                s = json.loads(data.decode("utf-8"))
+                states.append(s)
+                if s.get("extras", {}).get("won"):
+                    break
+            except TimeoutError:
+                pass
+        client.close()
+        assert any(s["extras"]["won"] for s in states), (
+            f"1.4 never won after 14s; last extras: {states[-1]['extras'] if states else 'no states'}"
+        )
+    finally:
+        sess.stop()
+    p = ProfileStore(profile_path).load()
+    assert "1.4" in p.completed
+
+
+def test_session_runs_level_2_1_and_wins(tmp_path: Path) -> None:
+    """End-to-end for Act 2.1: compound gearbox hits a ratio no single pair can."""
+    profile_path = tmp_path / "profile_21.json"
+    port = 19988
+    profile = ProfileStore(profile_path)
+    sess = LevelSession("2.1", profile=profile, port=port, sim_hz=200.0)
+    sess.start()
+    try:
+        client = _make_client(port)
+        _send_action(client, "ping", {}, port)
+        from robot_forge.levels.level_2_1 import solve_driving_voltage_2_1
+
+        # N12/N36 x N12/N48 = 3:1 * 4:1 = 12:1 (the target, unreachable single).
+        _send_action(client, "set_gears", {"a": 12, "b": 36, "c": 12, "d": 48}, port)
+        time.sleep(0.1)
+        _send_action(client, ACTION_SET_LOAD, {"value": sess.level.target_load_torque}, port)
+        time.sleep(0.1)
+        v = solve_driving_voltage_2_1(
+            sess.level.target_out_rpm,
+            sess.level.total_ratio,
+            sess.level.target_load_torque,
+        )
+        _send_action(client, ACTION_SET_VOLTAGE, {"value": abs(v) * 1.01}, port)
+        deadline = time.time() + 14.0
+        states: list[dict] = []
+        while time.time() < deadline:
+            try:
+                client.settimeout(0.5)
+                data, _ = client.recvfrom(65535)
+                s = json.loads(data.decode("utf-8"))
+                states.append(s)
+                if s.get("extras", {}).get("won"):
+                    break
+            except TimeoutError:
+                pass
+        client.close()
+        assert any(s["extras"]["won"] for s in states), (
+            f"2.1 never won after 14s; last extras: {states[-1]['extras'] if states else 'no states'}"
+        )
+    finally:
+        sess.stop()
+    p = ProfileStore(profile_path).load()
+    assert "2.1" in p.completed
+
+
+def test_session_runs_level_2_2_and_wins(tmp_path: Path) -> None:
+    """End-to-end for Act 2.2: planetary 6:1 (sun N12/planet N24/ring N60) wins."""
+    profile_path = tmp_path / "profile_22.json"
+    port = 19987
+    profile = ProfileStore(profile_path)
+    sess = LevelSession("2.2", profile=profile, port=port, sim_hz=200.0)
+    sess.start()
+    try:
+        client = _make_client(port)
+        _send_action(client, "ping", {}, port)
+        from robot_forge.levels.level_2_2 import solve_driving_voltage_2_2
+
+        # The catalog's max planetary: sun N12 / ring N60 -> planet N24 (derived) = 6:1.
+        _send_action(client, "set_gears", {"sun": 12, "ring": 60}, port)
+        time.sleep(0.1)
+        # Ring-fixed is the winning mode (and the default); send it to exercise
+        # the set_mode action end-to-end.
+        _send_action(client, ACTION_SET_MODE, {"mode": "ring_fixed"}, port)
+        time.sleep(0.1)
+        _send_action(client, ACTION_SET_LOAD, {"value": sess.level.target_load_torque}, port)
+        time.sleep(0.1)
+        v = solve_driving_voltage_2_2(
+            sess.level.target_out_rpm,
+            abs(sess.level.reduction_ratio),
+            sess.level.target_load_torque,
+        )
+        _send_action(client, ACTION_SET_VOLTAGE, {"value": abs(v) * 1.01}, port)
+        deadline = time.time() + 14.0
+        states: list[dict] = []
+        while time.time() < deadline:
+            try:
+                client.settimeout(0.5)
+                data, _ = client.recvfrom(65535)
+                s = json.loads(data.decode("utf-8"))
+                states.append(s)
+                if s.get("extras", {}).get("won"):
+                    break
+            except TimeoutError:
+                pass
+        client.close()
+        assert any(s["extras"]["won"] for s in states), (
+            f"2.2 never won after 14s; last extras: {states[-1]['extras'] if states else 'no states'}"
+        )
+    finally:
+        sess.stop()
+    p = ProfileStore(profile_path).load()
+    assert "2.2" in p.completed
+
+
+def test_session_runs_level_2_3_and_wins(tmp_path: Path) -> None:
+    """End-to-end for Act 2.3: planetary (sun N12/ring N60 = 6:1) lifts the rod
+    to 45° via the open-loop equilibrium voltage."""
+    profile_path = tmp_path / "profile_23.json"
+    port = 19988
+    profile = ProfileStore(profile_path)
+    sess = LevelSession("2.3", profile=profile, port=port, sim_hz=200.0)
+    sess.start()
+    try:
+        client = _make_client(port)
+        _send_action(client, "ping", {}, port)
+        from robot_forge.levels.level_2_3 import solve_driving_voltage_2_3
+
+        # The winning set is the default: sun N12 / ring N60 -> planet N24,
+        # ring-fixed 6:1. Send it to exercise the planetary set_gears path.
+        _send_action(client, "set_gears", {"sun": 12, "ring": 60}, port)
+        time.sleep(0.1)
+        _send_action(client, ACTION_SET_MODE, {"mode": "ring_fixed"}, port)
+        time.sleep(0.1)
+        v = solve_driving_voltage_2_3(
+            sess.level.target_angle_deg,
+            abs(sess.level.reduction_ratio),
+            sess.level.rod_mass,
+            sess.level.rod_length,
+        )
+        _send_action(client, ACTION_SET_VOLTAGE, {"value": v}, port)
+        deadline = time.time() + 18.0
+        states: list[dict] = []
+        while time.time() < deadline:
+            try:
+                client.settimeout(0.5)
+                data, _ = client.recvfrom(65535)
+                s = json.loads(data.decode("utf-8"))
+                states.append(s)
+                if s.get("extras", {}).get("won"):
+                    break
+            except TimeoutError:
+                pass
+        client.close()
+        assert any(s["extras"]["won"] for s in states), (
+            f"2.3 never won after 18s; last extras: {states[-1]['extras'] if states else 'no states'}"
+        )
+    finally:
+        sess.stop()
+    p = ProfileStore(profile_path).load()
+    assert "2.3" in p.completed
+
+
+def test_session_runs_level_2_4_and_wins(tmp_path: Path) -> None:
+    """End-to-end for Act 2.4: the two-link arm's tip reaches the target region
+    via the open-loop equilibrium voltages on both joints."""
+    profile_path = tmp_path / "profile_24.json"
+    port = 19987
+    profile = ProfileStore(profile_path)
+    sess = LevelSession("2.4", profile=profile, port=port, sim_hz=200.0)
+    sess.start()
+    try:
+        client = _make_client(port)
+        _send_action(client, "ping", {}, port)
+        from robot_forge.levels.level_2_4 import solve_driving_voltage_2_4, solve_target_angles
+
+        lvl = sess.level
+        qa1, qa2 = solve_target_angles(lvl.target_x, lvl.target_y, lvl.link_length)
+        v1, v2 = solve_driving_voltage_2_4(qa1, qa2, lvl.ratio_1, lvl.ratio_2)
+        _send_action(client, ACTION_SET_JOINT_VOLTAGE, {"id": 0, "value": v1}, port)
+        time.sleep(0.1)
+        _send_action(client, ACTION_SET_JOINT_VOLTAGE, {"id": 1, "value": v2}, port)
+        deadline = time.time() + 22.0
+        states: list[dict] = []
+        while time.time() < deadline:
+            try:
+                client.settimeout(0.5)
+                data, _ = client.recvfrom(65535)
+                s = json.loads(data.decode("utf-8"))
+                states.append(s)
+                if s.get("extras", {}).get("won"):
+                    break
+            except TimeoutError:
+                pass
+        client.close()
+        assert any(s["extras"]["won"] for s in states), (
+            f"2.4 never won after 22s; last extras: {states[-1]['extras'] if states else 'no states'}"
+        )
+    finally:
+        sess.stop()
+    p = ProfileStore(profile_path).load()
+    assert "2.4" in p.completed

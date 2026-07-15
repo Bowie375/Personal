@@ -1,0 +1,336 @@
+[gd_scene load_steps=18 format=3 uid="uid://robot_forge_level_2_4"]
+
+[ext_resource type="Script" path="res://scripts/level_state.gd" id="1_state"]
+[ext_resource type="Script" path="res://scripts/gear_hud_2_4.gd" id="2_hud"]
+[ext_resource type="Script" path="res://scripts/two_link_assembly.gd" id="3_assembly"]
+[ext_resource type="Script" path="res://scripts/joint_visual.gd" id="4_joint"]
+[ext_resource type="Script" path="res://scripts/joint_control_panel.gd" id="5_panel"]
+[ext_resource type="Script" path="res://scripts/level_controller.gd" id="6_ctrl"]
+[ext_resource type="Script" path="res://scripts/rod_visual.gd" id="7_rod"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_floor"]
+size = Vector2(12, 12)
+
+[sub_resource type="StandardMaterial3D" id="Mat_floor"]
+albedo_color = Color(0.15, 0.15, 0.18, 1)
+roughness = 0.9
+
+[sub_resource type="CylinderMesh" id="Cyl_target"]
+top_radius = 0.12
+bottom_radius = 0.12
+height = 0.02
+
+[sub_resource type="StandardMaterial3D" id="Mat_target"]
+albedo_color = Color(0.2, 0.9, 0.4, 0.35)
+transparency = 1
+roughness = 0.6
+
+[sub_resource type="SphereMesh" id="Sphere_tip"]
+radius = 0.04
+
+[sub_resource type="StandardMaterial3D" id="Mat_tip"]
+albedo_color = Color(1.0, 0.85, 0.2, 1)
+emission_enabled = true
+emission = Color(1.0, 0.6, 0.1, 1)
+emission_energy_multiplier = 1.5
+
+[sub_resource type="ProceduralSkyMaterial" id="Sky_proc"]
+sky_top_color = Color(0.1, 0.12, 0.15, 1)
+sky_horizon_color = Color(0.2, 0.22, 0.25, 1)
+ground_horizon_color = Color(0.15, 0.15, 0.15, 1)
+ground_bottom_color = Color(0.1, 0.1, 0.1, 1)
+sun_angle_max = 30.0
+sun_curve = 0.15
+
+[sub_resource type="Sky" id="Sky_1"]
+sky_material = SubResource("Sky_proc")
+
+[sub_resource type="Environment" id="Env_1"]
+background_mode = 2
+sky = SubResource("Sky_1")
+ambient_light_source = 3
+ambient_light_color = Color(0.55, 0.58, 0.62, 1)
+ambient_light_energy = 0.85
+tonemap_mode = 2
+tonemap_white = 1.0
+
+[node name="Level_2_4" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env_1")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, -0.354, 0.354, 0, 0.707, 0.707, -0.5, -0.612, 0.612, 0, 5, 0)
+shadow_enabled = true
+light_energy = 0.9
+shadow_opacity = 0.5
+shadow_bias = 0.08
+shadow_normal_bias = 1.5
+
+[node name="FillLight" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 4.0)
+light_energy = 0.6
+light_color = Color(0.85, 0.88, 0.95, 1)
+omni_range = 8.0
+omni_attenuation = 1.2
+shadow_enabled = false
+
+[node name="RimLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.5, 0.354, -0.789, 0.5, -0.612, -0.612, -0.707, -0.707, 0.0, 0, 3, -3)
+light_energy = 0.35
+light_color = Color(0.7, 0.75, 0.85, 1)
+shadow_enabled = false
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 0.8, 5.0)
+fov = 50.0
+
+[node name="Floor" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("PlaneMesh_floor")
+material_override = SubResource("Mat_floor")
+
+[node name="TargetRegion" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.449, 0.746, 0)
+mesh = SubResource("Cyl_target")
+material_override = SubResource("Mat_target")
+
+[node name="ArmAssembly" type="Node3D" parent="."]
+script = ExtResource("3_assembly")
+state_path = NodePath("../LevelState")
+shoulder_path = NodePath("Link1Pivot/Shoulder")
+elbow_path = NodePath("Link1Pivot/Link2Pivot/Elbow")
+link1_pivot_path = NodePath("Link1Pivot")
+link2_pivot_path = NodePath("Link1Pivot/Link2Pivot")
+tip_marker_path = NodePath("Link1Pivot/Link2Pivot/TipMarker")
+link_length = 0.9
+link_thickness = 0.06
+pivot_y = 1.2
+
+[node name="Link1Pivot" type="Node3D" parent="ArmAssembly"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0)
+
+[node name="Shoulder" type="MeshInstance3D" parent="ArmAssembly/Link1Pivot"]
+script = ExtResource("4_joint")
+joint_id = 0
+housing_radius = 0.14
+housing_height = 0.18
+housing_color = Color(0.75, 0.7, 0.45, 1)
+highlight_color = Color(1.0, 0.85, 0.3, 1)
+
+[node name="Link1" type="MeshInstance3D" parent="ArmAssembly/Link1Pivot"]
+script = ExtResource("7_rod")
+world_length = 0.9
+world_thickness = 0.06
+rod_color = Color(0.6, 0.72, 0.95, 0.4)
+
+[node name="Link2Pivot" type="Node3D" parent="ArmAssembly/Link1Pivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.9, 0)
+
+[node name="Elbow" type="MeshInstance3D" parent="ArmAssembly/Link1Pivot/Link2Pivot"]
+script = ExtResource("4_joint")
+joint_id = 1
+housing_radius = 0.12
+housing_height = 0.16
+housing_color = Color(0.55, 0.6, 0.7, 1)
+highlight_color = Color(1.0, 0.85, 0.3, 1)
+
+[node name="Link2" type="MeshInstance3D" parent="ArmAssembly/Link1Pivot/Link2Pivot"]
+script = ExtResource("7_rod")
+world_length = 0.9
+world_thickness = 0.06
+rod_color = Color(0.6, 0.85, 0.7, 0.4)
+
+[node name="TipMarker" type="MeshInstance3D" parent="ArmAssembly/Link1Pivot/Link2Pivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.9, 0)
+mesh = SubResource("Sphere_tip")
+material_override = SubResource("Mat_tip")
+
+[node name="LevelState" type="Node" parent="."]
+script = ExtResource("1_state")
+
+[node name="LevelController" type="Node" parent="."]
+script = ExtResource("6_ctrl")
+win_panel_path = NodePath("../WinPanel")
+next_button_path = NodePath("../WinPanel/VBox/NextButton")
+
+[node name="HUD" type="PanelContainer" parent="."]
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -360.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+mouse_filter = 2
+script = ExtResource("2_hud")
+tip_label_path = NodePath("VBox/TipRow/TipValue")
+target_label_path = NodePath("VBox/TargetRow/TargetValue")
+joint1_angle_label_path = NodePath("VBox/Joint1Row/J1Value")
+joint2_angle_label_path = NodePath("VBox/Joint2Row/J2Value")
+in_region_label_path = NodePath("VBox/RegionRow/RegionValue")
+diagnostic_panel_path = NodePath("../DiagnosticPanel")
+diagnostic_message_label_path = NodePath("../DiagnosticPanel/VBox/DiagMessage")
+diagnostic_hint_label_path = NodePath("../DiagnosticPanel/VBox/DiagHint")
+win_panel_path = NodePath("../WinPanel")
+
+[node name="VBox" type="VBoxContainer" parent="HUD"]
+
+[node name="Title" type="Label" parent="HUD/VBox"]
+text = "Act 2.4 — Two-link arm"
+horizontal_alignment = 1
+
+[node name="HSep1" type="HSeparator" parent="HUD/VBox"]
+
+[node name="TipRow" type="HBoxContainer" parent="HUD/VBox"]
+
+[node name="TipLabel" type="Label" parent="HUD/VBox/TipRow"]
+custom_minimum_size = Vector2(80, 0)
+text = "Tip"
+
+[node name="TipValue" type="Label" parent="HUD/VBox/TipRow"]
+text = "Tip: (0.00, -1.00)"
+
+[node name="TargetRow" type="HBoxContainer" parent="HUD/VBox"]
+
+[node name="TargetLabel" type="Label" parent="HUD/VBox/TargetRow"]
+custom_minimum_size = Vector2(80, 0)
+text = "Target"
+
+[node name="TargetValue" type="Label" parent="HUD/VBox/TargetRow"]
+text = "Target: (0.78, -0.59)"
+
+[node name="Joint1Row" type="HBoxContainer" parent="HUD/VBox"]
+
+[node name="J1Label" type="Label" parent="HUD/VBox/Joint1Row"]
+custom_minimum_size = Vector2(80, 0)
+text = "Shoulder"
+
+[node name="J1Value" type="Label" parent="HUD/VBox/Joint1Row"]
+text = "J1: 0.0°"
+
+[node name="Joint2Row" type="HBoxContainer" parent="HUD/VBox"]
+
+[node name="J2Label" type="Label" parent="HUD/VBox/Joint2Row"]
+custom_minimum_size = Vector2(80, 0)
+text = "Elbow"
+
+[node name="J2Value" type="Label" parent="HUD/VBox/Joint2Row"]
+text = "J2: 0.0°"
+
+[node name="RegionRow" type="HBoxContainer" parent="HUD/VBox"]
+
+[node name="RegionLabel" type="Label" parent="HUD/VBox/RegionRow"]
+custom_minimum_size = Vector2(80, 0)
+text = "In zone"
+
+[node name="RegionValue" type="Label" parent="HUD/VBox/RegionRow"]
+text = "In region: no"
+
+[node name="HSep2" type="HSeparator" parent="HUD/VBox"]
+
+[node name="Hint" type="Label" parent="HUD/VBox"]
+text = "Click a joint to tune its ratio + voltage. R: reset. Esc: menu."
+autowrap_mode = 2
+
+[node name="JointControlPanel" type="PanelContainer" parent="."]
+anchors_preset = 12
+anchor_left = 0.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = -180.0
+offset_right = 0.0
+offset_bottom = 0.0
+mouse_filter = 2
+script = ExtResource("5_panel")
+ratio_slider_path = NodePath("VBox/RatioRow/RatioSlider")
+ratio_value_label_path = NodePath("VBox/RatioRow/RatioValue")
+voltage_slider_path = NodePath("VBox/VoltageRow/VoltageSlider")
+voltage_value_label_path = NodePath("VBox/VoltageRow/VoltageValue")
+joint_label_path = NodePath("VBox/JointTitle")
+
+[node name="VBox" type="VBoxContainer" parent="JointControlPanel"]
+
+[node name="JointTitle" type="Label" parent="JointControlPanel/VBox"]
+text = "Click a joint…"
+horizontal_alignment = 1
+
+[node name="RatioRow" type="HBoxContainer" parent="JointControlPanel/VBox"]
+
+[node name="RatioLabel" type="Label" parent="JointControlPanel/VBox/RatioRow"]
+custom_minimum_size = Vector2(80, 0)
+text = "Ratio"
+
+[node name="RatioSlider" type="HSlider" parent="JointControlPanel/VBox/RatioRow"]
+custom_minimum_size = Vector2(200, 0)
+size_flags_horizontal = 3
+max_value = 5.0
+min_value = 0.0
+step = 1.0
+
+[node name="RatioValue" type="Label" parent="JointControlPanel/VBox/RatioRow"]
+custom_minimum_size = Vector2(100, 0)
+text = "Ratio: 6:1"
+
+[node name="VoltageRow" type="HBoxContainer" parent="JointControlPanel/VBox"]
+
+[node name="VoltageLabel" type="Label" parent="JointControlPanel/VBox/VoltageRow"]
+custom_minimum_size = Vector2(80, 0)
+text = "Motor V"
+
+[node name="VoltageSlider" type="HSlider" parent="JointControlPanel/VBox/VoltageRow"]
+custom_minimum_size = Vector2(200, 0)
+size_flags_horizontal = 3
+max_value = 24.0
+min_value = 0.0
+step = 0.05
+
+[node name="VoltageValue" type="Label" parent="JointControlPanel/VBox/VoltageRow"]
+custom_minimum_size = Vector2(100, 0)
+text = "Voltage: 0.00 V"
+
+[node name="DiagnosticPanel" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -60.0
+offset_right = 300.0
+offset_bottom = 60.0
+mouse_filter = 2
+
+[node name="VBox" type="VBoxContainer" parent="DiagnosticPanel"]
+
+[node name="DiagMessage" type="Label" parent="DiagnosticPanel/VBox"]
+autowrap_mode = 2
+
+[node name="DiagHint" type="Label" parent="DiagnosticPanel/VBox"]
+modulate = Color(1, 1, 1, 0.75)
+autowrap_mode = 2
+
+[node name="WinPanel" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -220.0
+offset_top = -70.0
+offset_right = 220.0
+offset_bottom = 70.0
+
+[node name="VBox" type="VBoxContainer" parent="WinPanel"]
+
+[node name="WinLabel" type="Label" parent="WinPanel/VBox"]
+text = "Level complete!"
+horizontal_alignment = 1
+
+[node name="NextButton" type="Button" parent="WinPanel/VBox"]
+text = "Return to menu"

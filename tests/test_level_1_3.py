@@ -166,7 +166,9 @@ class TestEdgeCases:
     def test_smallest_and_largest_gears(self):
         """Extreme case: N12 driver (small, high speed) and N60 driven (large, low speed)."""
         # This 1:5 ratio means driven is 5× slower. Should still work.
-        lvl = ThreeGearLevel(driver_teeth=12, idler_teeth=30, driven_teeth=60, target_driven_rpm=30.0)
+        lvl = ThreeGearLevel(
+            driver_teeth=12, idler_teeth=30, driven_teeth=60, target_driven_rpm=30.0
+        )
         v = solve_driving_voltage_1_3(30.0, lvl.driver, lvl.driven)
         lvl.set_voltage(abs(v) * 1.01)
         for _ in range(int(8.0 / DT)):

@@ -14,6 +14,7 @@ reset) behave exactly as before.
 from __future__ import annotations
 
 import logging
+import math
 import threading
 import time
 
@@ -26,6 +27,16 @@ from robot_forge.levels.level_1_2 import DT as DT_1_2
 from robot_forge.levels.level_1_2 import TwoGearLevel
 from robot_forge.levels.level_1_3 import DT as DT_1_3
 from robot_forge.levels.level_1_3 import ThreeGearLevel
+from robot_forge.levels.level_1_4 import DT as DT_1_4
+from robot_forge.levels.level_1_4 import LoadedGearLevel
+from robot_forge.levels.level_2_1 import DT as DT_2_1
+from robot_forge.levels.level_2_1 import CompoundGearLevel
+from robot_forge.levels.level_2_2 import DT as DT_2_2
+from robot_forge.levels.level_2_2 import PlanetaryGearLevel
+from robot_forge.levels.level_2_3 import DT as DT_2_3
+from robot_forge.levels.level_2_3 import JointLevel
+from robot_forge.levels.level_2_4 import DT as DT_2_4
+from robot_forge.levels.level_2_4 import TwoLinkLevel
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +46,10 @@ ACTION_SET_VOLTAGE = "set_voltage"
 ACTION_SET_GEARS = "set_gears"
 ACTION_SET_LEVEL = "set_level"
 ACTION_SET_PARAMS = "set_params"
+ACTION_SET_LOAD = "set_load"
+ACTION_SET_MODE = "set_mode"
+ACTION_SET_JOINT_RATIO = "set_joint_ratio"
+ACTION_SET_JOINT_VOLTAGE = "set_joint_voltage"
 ACTION_RESET = "reset"
 ACTION_PING = "ping"
 
@@ -44,6 +59,11 @@ LEVEL_REGISTRY: dict[str, tuple] = {
     "1.1": (ShaftLevel, DT_1_1),
     "1.2": (TwoGearLevel, DT_1_2),
     "1.3": (ThreeGearLevel, DT_1_3),
+    "1.4": (LoadedGearLevel, DT_1_4),
+    "2.1": (CompoundGearLevel, DT_2_1),
+    "2.2": (PlanetaryGearLevel, DT_2_2),
+    "2.3": (JointLevel, DT_2_3),
+    "2.4": (TwoLinkLevel, DT_2_4),
 }
 
 
@@ -81,6 +101,36 @@ def _summary_1_3(level: ThreeGearLevel) -> dict:
     s = level.summary()
     # Ensure target_sign is present for the bridge payload.
     s.setdefault("target_sign", level.target_sign)
+    return s
+
+
+def _summary_1_4(level: LoadedGearLevel) -> dict:
+    s = level.summary()
+    s.setdefault("target_sign", level.target_sign)
+    return s
+
+
+def _summary_2_1(level: CompoundGearLevel) -> dict:
+    s = level.summary()
+    s.setdefault("target_sign", level.target_sign)
+    return s
+
+
+def _summary_2_2(level: PlanetaryGearLevel) -> dict:
+    s = level.summary()
+    s.setdefault("target_sign", level.target_sign)
+    return s
+
+
+def _summary_2_3(level: JointLevel) -> dict:
+    s = level.summary()
+    s.setdefault("target_sign", level.target_sign)
+    return s
+
+
+def _summary_2_4(level: TwoLinkLevel) -> dict:
+    s = level.summary()
+    s.setdefault("target_sign", 1)
     return s
 
 
@@ -179,16 +229,41 @@ class LevelSession:
                 inertia=float(payload.get("inertia", level.inertia)),
                 damping=float(payload.get("damping", level.damping)),
             )
+        elif name == ACTION_SET_LOAD and hasattr(level, "set_load"):
+            # 1.4 — player drags the load slider on the driven shaft.
+            level.set_load(float(payload.get("value", 0.0)))
+        elif name == ACTION_SET_MODE and hasattr(level, "set_mode"):
+            # 2.2 — player picks which planetary member to ground.
+            level.set_mode(str(payload.get("mode", "ring_fixed")))
+        elif name == ACTION_SET_JOINT_RATIO and hasattr(level, "set_joint_ratio"):
+            # 2.4 — abstracted joint: pick the reduction for joint `id`.
+            level.set_joint_ratio(int(payload.get("id", 0)), float(payload.get("value", 0.0)))
+        elif name == ACTION_SET_JOINT_VOLTAGE and hasattr(level, "set_joint_voltage"):
+            # 2.4 — abstracted joint: set the motor voltage for joint `id`.
+            level.set_joint_voltage(int(payload.get("id", 0)), float(payload.get("value", 0.0)))
         elif name == ACTION_SET_GEARS and hasattr(level, "set_gears"):
             d = int(payload.get("driver", 0))
             dn = int(payload.get("driven", 0))
             idler = int(payload.get("idler", 0))
-            if idler > 0:
+            a = int(payload.get("a", 0))
+            b = int(payload.get("b", 0))
+            c = int(payload.get("c", 0))
+            dd = int(payload.get("d", 0))
+            sun = int(payload.get("sun", 0))
+            ring = int(payload.get("ring", 0))
+            if sun > 0 and ring > 0:
+                # Planetary (2.2): sun + ring (the planet is derived by the
+                # backend from N_ring = N_sun + 2*N_planet).
+                level.set_gears(sun, ring)
+            elif a > 0 and b > 0 and c > 0 and dd > 0:
+                # Four-gear compound (2.1): A->B, B+C shared shaft, C->D.
+                level.set_gears(a, b, c, dd)
+            elif idler > 0:
                 # Three-gear level (1.3)
                 if d > 0 and dn > 0:
                     level.set_gears(driver_teeth=d, idler_teeth=idler, driven_teeth=dn)
             elif d > 0 and dn > 0:
-                # Two-gear level (1.2)
+                # Two-gear level (1.2 / 1.4)
                 level.set_gears(driver_teeth=d, driven_teeth=dn)
         elif name == ACTION_RESET:
             with self._level_lock:
@@ -240,6 +315,21 @@ class LevelSession:
             elif level_id == "1.3":
                 dt = DT_1_3
                 extras = _summary_1_3(level)
+            elif level_id == "1.4":
+                dt = DT_1_4
+                extras = _summary_1_4(level)
+            elif level_id == "2.1":
+                dt = DT_2_1
+                extras = _summary_2_1(level)
+            elif level_id == "2.2":
+                dt = DT_2_2
+                extras = _summary_2_2(level)
+            elif level_id == "2.3":
+                dt = DT_2_3
+                extras = _summary_2_3(level)
+            elif level_id == "2.4":
+                dt = DT_2_4
+                extras = _summary_2_4(level)
             else:
                 dt = DT_1_1
                 extras = _summary_1_1(level)
@@ -261,6 +351,56 @@ class LevelSession:
                 {"id": 1, "rpm": level.idler_rpm, "angle": level.state.idler_angle},
                 {"id": 2, "rpm": level.driven_rpm, "angle": level.state.driven_angle},
             ]
+        if level_id == "1.4":
+            # Two-gear train (like 1.2): driver + driven. Driven carries the load.
+            return [
+                {"id": 0, "rpm": level.driver_rpm, "angle": level.state.driver_angle},
+                {"id": 1, "rpm": level.driven_rpm, "angle": level.state.driven_angle},
+            ]
+        if level_id == "2.1":
+            # Four-gear compound: A (driver), B (intermediate, shares shaft with
+            # C), D (output). Expose A, B(=C), D so the HUD shows 3 distinct RPMs.
+            return [
+                {"id": 0, "rpm": level.driver_rpm, "angle": level.state.driver_angle},
+                {"id": 1, "rpm": level.intermediate_rpm, "angle": level.state.b_angle},
+                {"id": 2, "rpm": level.output_rpm, "angle": level.state.d_angle},
+            ]
+        if level_id == "2.2":
+            # Planetary: sun (motor, id 0), carrier (output, id 1), ring (id 2),
+            # and the planet self-spin (id 3) so the planet visuals can rotate.
+            return [
+                {"id": 0, "rpm": level.sun_rpm, "angle": level.state.sun_angle},
+                {"id": 1, "rpm": level.carrier_rpm, "angle": level.state.carrier_angle},
+                {"id": 2, "rpm": level.ring_rpm, "angle": level.state.ring_angle},
+                {"id": 3, "rpm": level.planet_rpm, "angle": level.state.planet_angle},
+            ]
+        if level_id == "2.3":
+            # First joint (planetary): sun (motor, id 0), carrier (the rod
+            # output, id 1 — carries the rod angle), ring (id 2, grounded in
+            # ring-fixed mode), planet self-spin (id 3, for visuals).
+            return [
+                {"id": 0, "rpm": level.sun_rpm, "angle": level.state.sun_angle},
+                {"id": 1, "rpm": level.carrier_rpm, "angle": level.state.carrier_angle},
+                {"id": 2, "rpm": level.ring_rpm, "angle": level.state.ring_angle},
+                {"id": 3, "rpm": level.planet_rpm, "angle": level.state.planet_angle},
+            ]
+        if level_id == "2.4":
+            # Two abstracted joints (the arm): id 0 = shoulder (q1), id 1 =
+            # elbow (q2). A third pseudo-joint (id 2) carries the FK tip
+            # position so the Godot tip marker can track it.
+            return [
+                {
+                    "id": 0,
+                    "rpm": level.omega_1 * 60.0 / (2.0 * math.pi),
+                    "angle": level.joint_angle_1,
+                },
+                {
+                    "id": 1,
+                    "rpm": level.omega_2 * 60.0 / (2.0 * math.pi),
+                    "angle": level.joint_angle_2,
+                },
+                {"id": 2, "rpm": 0.0, "angle": level.tip_x, "y": level.tip_y},
+            ]
         # Default: 1.1 — single shaft.
         return [{"id": 0, "rpm": level.rpm, "angle": level.state.angle_rad}]
 
@@ -268,9 +408,7 @@ class LevelSession:
 def main() -> None:
     import argparse
 
-    p = argparse.ArgumentParser(
-        description="Robot Forge bridge: one process serving all levels."
-    )
+    p = argparse.ArgumentParser(description="Robot Forge bridge: one process serving all levels.")
     # --level is now optional: omit it to wait for Godot to pick via set_level.
     p.add_argument(
         "--level",

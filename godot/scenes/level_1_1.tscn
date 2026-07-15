@@ -69,8 +69,6 @@ fov = 50.0
 
 [node name="ShaftAssembly" type="Node3D" parent="."]
 
-# Shaft: long thin cylinder along X, spinning around X. shaft_visual reorients
-# its +Y geometry axis onto spin_axis=(1,0,0).
 [node name="Shaft" type="MeshInstance3D" parent="ShaftAssembly"]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 0, 1, 0)
 mesh = SubResource("CylinderMesh_shaft")
@@ -80,7 +78,6 @@ state_path = NodePath("../../LevelState")
 joint_id = 0
 spin_axis = Vector3(1, 0, 0)
 
-# Two bearings hugging the shaft, short fat cylinders along X.
 [node name="BearingLeft" type="MeshInstance3D" parent="ShaftAssembly"]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -1.2, 1, 0)
 mesh = SubResource("CylinderMesh_bearing")
@@ -91,8 +88,6 @@ transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 1.2, 1, 0)
 mesh = SubResource("CylinderMesh_bearing")
 material_override = SubResource("Mat_bearing")
 
-# One toothed gear mounted on the shaft (reuse gear_visual.gd). Spins with
-# the shaft (joint_id=0), around X. Scale 0.45 ≈ N30 pitch_r * 0.03.
 [node name="Gear" type="MeshInstance3D" parent="ShaftAssembly"]
 transform = Transform3D(0, 0, 0.45, 0, 0.45, 0, -0.45, 0, 0, 0, 1, 0)
 script = ExtResource("4_gear")

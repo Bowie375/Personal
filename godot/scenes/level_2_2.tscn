@@ -1,0 +1,438 @@
+[gd_scene load_steps=13 format=3 uid="uid://robot_forge_level_2_2"]
+
+[ext_resource type="Script" path="res://scripts/level_state.gd" id="1_state"]
+[ext_resource type="Script" path="res://scripts/gear_hud_2_2.gd" id="2_hud"]
+[ext_resource type="Script" path="res://scripts/gear_visual.gd" id="3_visual"]
+[ext_resource type="Script" path="res://scripts/gear_planetary_assembly.gd" id="4_assembly"]
+[ext_resource type="Script" path="res://scripts/level_controller.gd" id="5_ctrl"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_floor"]
+size = Vector2(12, 12)
+
+[sub_resource type="StandardMaterial3D" id="Mat_floor"]
+albedo_color = Color(0.15, 0.15, 0.18, 1)
+roughness = 0.9
+
+[sub_resource type="CylinderMesh" id="Cyl_carrier"]
+top_radius = 1.0
+bottom_radius = 1.0
+height = 0.08
+
+[sub_resource type="StandardMaterial3D" id="Mat_carrier"]
+albedo_color = Color(0.5, 0.5, 0.55, 1)
+roughness = 0.6
+
+[sub_resource type="ProceduralSkyMaterial" id="Sky_proc"]
+sky_top_color = Color(0.1, 0.12, 0.15, 1)
+sky_horizon_color = Color(0.2, 0.22, 0.25, 1)
+ground_horizon_color = Color(0.15, 0.15, 0.15, 1)
+ground_bottom_color = Color(0.1, 0.1, 0.1, 1)
+sun_angle_max = 30.0
+sun_curve = 0.15
+
+[sub_resource type="Sky" id="Sky_1"]
+sky_material = SubResource("Sky_proc")
+
+[sub_resource type="Environment" id="Env_1"]
+background_mode = 2
+sky = SubResource("Sky_1")
+ambient_light_source = 3
+ambient_light_color = Color(0.55, 0.58, 0.62, 1)
+ambient_light_energy = 0.85
+tonemap_mode = 2
+tonemap_white = 1.0
+
+[node name="Level_2_2" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env_1")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, -0.354, 0.354, 0, 0.707, 0.707, -0.5, -0.612, 0.612, 0, 5, 0)
+shadow_enabled = true
+light_energy = 0.9
+shadow_opacity = 0.5
+shadow_bias = 0.08
+shadow_normal_bias = 1.5
+
+[node name="FillLight" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 4.0)
+light_energy = 0.6
+light_color = Color(0.85, 0.88, 0.95, 1)
+omni_range = 8.0
+omni_attenuation = 1.2
+shadow_enabled = false
+
+[node name="RimLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.5, 0.354, -0.789, 0.5, -0.612, -0.612, -0.707, -0.707, 0.0, 0, 3, -3)
+light_energy = 0.35
+light_color = Color(0.7, 0.75, 0.85, 1)
+shadow_enabled = false
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.0, 5.5)
+fov = 45.0
+
+[node name="Floor" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+mesh = SubResource("PlaneMesh_floor")
+material_override = SubResource("Mat_floor")
+
+[node name="GearAssembly" type="Node3D" parent="."]
+script = ExtResource("4_assembly")
+state_path = NodePath("../LevelState")
+sun_path = NodePath("Sun")
+planet_path = NodePath("PlanetTemplate")
+ring_path = NodePath("Ring")
+carrier_path = NodePath("Carrier")
+num_planets = 3
+
+[node name="Sun" type="MeshInstance3D" parent="GearAssembly"]
+transform = Transform3D(0.45, 0, 0, 0, 0.45, 0, 0, 0, 0.45, 0, 1, 0)
+script = ExtResource("3_visual")
+state_path = NodePath("../../LevelState")
+joint_id = 0
+spin_axis = Vector3(0, 0, 1)
+gear_color = Color(0.9, 0.75, 0.35, 1.0)
+gear_role = 4
+
+[node name="Ring" type="MeshInstance3D" parent="GearAssembly"]
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0, 1, 0)
+script = ExtResource("3_visual")
+state_path = NodePath("../../LevelState")
+joint_id = 2
+spin_axis = Vector3(0, 0, 1)
+gear_color = Color(0.55, 0.6, 0.7, 1.0)
+gear_role = 6
+
+[node name="PlanetTemplate" type="MeshInstance3D" parent="GearAssembly"]
+visible = false
+transform = Transform3D(0.25, 0, 0, 0, 0.25, 0, 0, 0, 0.25, 0, 1, 0)
+script = ExtResource("3_visual")
+state_path = NodePath("../../LevelState")
+joint_id = 3
+spin_axis = Vector3(0, 0, 1)
+gear_color = Color(0.6, 0.62, 0.6, 1.0)
+gear_role = 5
+
+[node name="Carrier" type="Node3D" parent="GearAssembly"]
+transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, 0, 1, 0)
+
+[node name="CarrierMesh" type="MeshInstance3D" parent="GearAssembly/Carrier"]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0)
+mesh = SubResource("Cyl_carrier")
+material_override = SubResource("Mat_carrier")
+
+[node name="Motor" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.5, 1, 0)
+
+[node name="LevelState" type="Node" parent="."]
+script = ExtResource("1_state")
+
+[node name="LevelController" type="Node" parent="."]
+script = ExtResource("5_ctrl")
+win_panel_path = NodePath("../WinPanel")
+next_button_path = NodePath("../WinPanel/VBox/NextButton")
+
+[node name="HUD" type="PanelContainer" parent="."]
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -420.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+mouse_filter = 1
+script = ExtResource("2_hud")
+voltage_slider_path = NodePath("VBox/VoltageRow/VoltageSlider")
+voltage_value_label_path = NodePath("VBox/VoltageRow/VoltageValue")
+load_slider_path = NodePath("VBox/LoadRow/LoadSlider")
+load_value_label_path = NodePath("VBox/LoadRow/LoadValue")
+target_load_label_path = NodePath("VBox/TargetLoadLabel")
+sun_select_path = NodePath("VBox/GearRow/SunSelect")
+ring_select_path = NodePath("VBox/GearRow2/RingSelect")
+planet_label_path = NodePath("VBox/GearRow2/PlanetValue")
+mode_select_path = NodePath("VBox/ModeRow/ModeSelect")
+ratio_value_label_path = NodePath("VBox/RatioRow/RatioValue")
+target_ratio_label_path = NodePath("VBox/RatioRow/TargetRatioLabel")
+sun_rpm_label_path = NodePath("VBox/SunRpmRow/SunRpmValue")
+carrier_rpm_label_path = NodePath("VBox/CarrierRpmRow/CarrierRpmValue")
+ring_rpm_label_path = NodePath("VBox/RingRpmRow/RingRpmValue")
+target_value_label_path = NodePath("VBox/CarrierRpmRow/TargetValue")
+sun_bar_path = NodePath("VBox/BarsContainer/SunBar")
+carrier_bar_path = NodePath("VBox/BarsContainer/CarrierBar")
+ring_bar_path = NodePath("VBox/BarsContainer/RingBar")
+target_marker_path = NodePath("VBox/BarsContainer/TargetMarker")
+output_torque_label_path = NodePath("VBox/TorqueRow/OutputTorqueValue")
+motor_side_load_label_path = NodePath("VBox/TorqueRow/MotorSideLoadValue")
+stall_banner_path = NodePath("../StallBanner")
+assemble_banner_path = NodePath("../AssembleBanner")
+diagnostic_panel_path = NodePath("../DiagnosticPanel")
+diagnostic_message_label_path = NodePath("../DiagnosticPanel/VBox/DiagMessage")
+diagnostic_hint_label_path = NodePath("../DiagnosticPanel/VBox/DiagHint")
+win_panel_path = NodePath("../WinPanel")
+
+[node name="VBox" type="VBoxContainer" parent="HUD"]
+
+[node name="Title" type="Label" parent="HUD/VBox"]
+text = "Act 2.2 — Planetary gearbox"
+horizontal_alignment = 1
+
+[node name="HSep1" type="HSeparator" parent="HUD/VBox"]
+
+[node name="VoltageRow" type="HBoxContainer" parent="HUD/VBox"]
+
+[node name="VoltageLabel" type="Label" parent="HUD/VBox/VoltageRow"]
+custom_minimum_size = Vector2(70, 0)
+text = "Motor V"
+
+[node name="VoltageSlider" type="HSlider" parent="HUD/VBox/VoltageRow"]
+custom_minimum_size = Vector2(180, 0)
+size_flags_horizontal = 3
+max_value = 24.0
+min_value = -24.0
+step = 0.1
+
+[node name="VoltageValue" type="Label" parent="HUD/VBox/VoltageRow"]
+custom_minimum_size = Vector2(90, 0)
+text = "+0.00 V"
+
+[node name="LoadRow" type="HBoxContainer" parent="HUD/VBox"]
+
+[node name="LoadLabel" type="Label" parent="HUD/VBox/LoadRow"]
+custom_minimum_size = Vector2(70, 0)
+text = "Load"
+
+[node name="LoadSlider" type="HSlider" parent="HUD/VBox/LoadRow"]
+custom_minimum_size = Vector2(180, 0)
+size_flags_horizontal = 3
+max_value = 2.0
+min_value = 0.0
+step = 0.05
+
+[node name="LoadValue" type="Label" parent="HUD/VBox/LoadRow"]
+custom_minimum_size = Vector2(90, 0)
+text = "0.00 N·m"
+
+[node name="TargetLoadLabel" type="Label" parent="HUD/VBox"]
+text = "Target load: 0.50 N·m"
+modulate = Color(1, 0.85, 0.2, 1)
+
+[node name="HSep2" type="HSeparator" parent="HUD/VBox"]
+
+[node name="GearRow" type="HBoxContainer" parent="HUD/VBox"]
+
+[node name="SunLabel" type="Label" parent="HUD/VBox/GearRow"]
+custom_minimum_size = Vector2(45, 0)
+text = "Sun"
+
+[node name="SunSelect" type="OptionButton" parent="HUD/VBox/GearRow"]
+custom_minimum_size = Vector2(110, 0)
+size_flags_horizontal = 3
+
+[node name="GearRow2" type="HBoxContainer" parent="HUD/VBox"]
+
+[node name="RingLabel" type="Label" parent="HUD/VBox/GearRow2"]
+custom_minimum_size = Vector2(45, 0)
+text = "Ring"
+
+[node name="RingSelect" type="OptionButton" parent="HUD/VBox/GearRow2"]
+custom_minimum_size = Vector2(110, 0)
+size_flags_horizontal = 3
+
+[node name="PlanetLabel" type="Label" parent="HUD/VBox/GearRow2"]
+custom_minimum_size = Vector2(45, 0)
+text = "Planet"
+
+[node name="PlanetValue" type="Label" parent="HUD/VBox/GearRow2"]
+custom_minimum_size = Vector2(150, 0)
+text = "Planet: N12 (derived)"
+modulate = Color(0.7, 0.8, 1, 1)
+
+[node name="ModeRow" type="HBoxContainer" parent="HUD/VBox"]
+
+[node name="ModeLabel" type="Label" parent="HUD/VBox/ModeRow"]
+custom_minimum_size = Vector2(45, 0)
+text = "Mode"
+
+[node name="ModeSelect" type="OptionButton" parent="HUD/VBox/ModeRow"]
+custom_minimum_size = Vector2(250, 0)
+size_flags_horizontal = 3
+
+[node name="RatioRow" type="HBoxContainer" parent="HUD/VBox"]
+
+[node name="RatioLabel" type="Label" parent="HUD/VBox/RatioRow"]
+custom_minimum_size = Vector2(70, 0)
+text = "Ratio"
+
+[node name="RatioValue" type="Label" parent="HUD/VBox/RatioRow"]
+text = "1 + 48/24 = 3.00"
+
+[node name="TargetRatioLabel" type="Label" parent="HUD/VBox/RatioRow"]
+text = "Target: 6.0:1"
+modulate = Color(1, 0.85, 0.2, 1)
+
+[node name="HSep3" type="HSeparator" parent="HUD/VBox"]
+
+[node name="SunRpmRow" type="HBoxContainer" parent="HUD/VBox"]
+
+[node name="SunRpmLabel" type="Label" parent="HUD/VBox/SunRpmRow"]
+custom_minimum_size = Vector2(70, 0)
+text = "Sun"
+
+[node name="SunRpmValue" type="Label" parent="HUD/VBox/SunRpmRow"]
+custom_minimum_size = Vector2(120, 0)
+text = "0.0 RPM"
+
+[node name="CarrierRpmRow" type="HBoxContainer" parent="HUD/VBox"]
+
+[node name="CarrierRpmLabel" type="Label" parent="HUD/VBox/CarrierRpmRow"]
+custom_minimum_size = Vector2(70, 0)
+text = "Carrier"
+
+[node name="CarrierRpmValue" type="Label" parent="HUD/VBox/CarrierRpmRow"]
+custom_minimum_size = Vector2(120, 0)
+text = "0.0 RPM"
+
+[node name="TargetValue" type="Label" parent="HUD/VBox/CarrierRpmRow"]
+text = "Target: 10 RPM"
+
+[node name="RingRpmRow" type="HBoxContainer" parent="HUD/VBox"]
+
+[node name="RingRpmLabel" type="Label" parent="HUD/VBox/RingRpmRow"]
+custom_minimum_size = Vector2(70, 0)
+text = "Ring"
+
+[node name="RingRpmValue" type="Label" parent="HUD/VBox/RingRpmRow"]
+custom_minimum_size = Vector2(120, 0)
+text = "0.0 RPM"
+
+[node name="TorqueRow" type="HBoxContainer" parent="HUD/VBox"]
+
+[node name="OutputTorqueLabel" type="Label" parent="HUD/VBox/TorqueRow"]
+custom_minimum_size = Vector2(70, 0)
+text = "τ out"
+
+[node name="OutputTorqueValue" type="Label" parent="HUD/VBox/TorqueRow"]
+custom_minimum_size = Vector2(70, 0)
+text = "0.00 N·m"
+
+[node name="MotorSideLoadLabel" type="Label" parent="HUD/VBox/TorqueRow"]
+custom_minimum_size = Vector2(70, 0)
+text = "τ @ motor"
+
+[node name="MotorSideLoadValue" type="Label" parent="HUD/VBox/TorqueRow"]
+modulate = Color(0.6, 0.8, 1, 1)
+text = "0.00 N·m"
+
+[node name="Hint" type="Label" parent="HUD/VBox"]
+text = "↑/↓ or W/S: ±0.5V. R: reset. Esc: menu. Switch the MODE to see the ratio change."
+autowrap_mode = 2
+
+[node name="BarsContainer" type="Control" parent="HUD/VBox"]
+custom_minimum_size = Vector2(0, 84)
+
+[node name="SunBar" type="ProgressBar" parent="HUD/VBox/BarsContainer"]
+anchor_right = 1.0
+offset_top = 4.0
+offset_bottom = 24.0
+max_value = 200.0
+value = 0.0
+show_percentage = false
+
+[node name="CarrierBar" type="ProgressBar" parent="HUD/VBox/BarsContainer"]
+anchor_right = 1.0
+offset_top = 28.0
+offset_bottom = 48.0
+max_value = 200.0
+value = 0.0
+show_percentage = false
+
+[node name="RingBar" type="ProgressBar" parent="HUD/VBox/BarsContainer"]
+anchor_right = 1.0
+offset_top = 52.0
+offset_bottom = 72.0
+max_value = 200.0
+value = 0.0
+show_percentage = false
+
+[node name="TargetMarker" type="ColorRect" parent="HUD/VBox/BarsContainer"]
+custom_minimum_size = Vector2(2, 84)
+color = Color(1, 0.85, 0.2, 1)
+
+[node name="StallBanner" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.12
+anchor_right = 0.5
+anchor_bottom = 0.12
+offset_left = -160.0
+offset_top = -24.0
+offset_right = 160.0
+offset_bottom = 24.0
+
+[node name="StallLabel" type="Label" parent="StallBanner"]
+text = "⚠ STALLED — raise voltage (with enough reduction the load is tiny at the motor)"
+horizontal_alignment = 1
+modulate = Color(1, 0.4, 0.3, 1)
+
+[node name="AssembleBanner" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.2
+anchor_right = 0.5
+anchor_bottom = 0.2
+offset_left = -200.0
+offset_top = -24.0
+offset_right = 200.0
+offset_bottom = 24.0
+
+[node name="AssembleLabel" type="Label" parent="AssembleBanner"]
+text = "⚠ CAN'T ASSEMBLE — needs N_planet = (N_ring − N_sun)/2 in the catalog"
+horizontal_alignment = 1
+modulate = Color(1, 0.55, 0.3, 1)
+
+[node name="DiagnosticPanel" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -60.0
+offset_right = 300.0
+offset_bottom = 60.0
+
+[node name="VBox" type="VBoxContainer" parent="DiagnosticPanel"]
+
+[node name="DiagMessage" type="Label" parent="DiagnosticPanel/VBox"]
+autowrap_mode = 2
+
+[node name="DiagHint" type="Label" parent="DiagnosticPanel/VBox"]
+modulate = Color(1, 1, 1, 0.75)
+autowrap_mode = 2
+
+[node name="WinPanel" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -220.0
+offset_top = -70.0
+offset_right = 220.0
+offset_bottom = 70.0
+
+[node name="VBox" type="VBoxContainer" parent="WinPanel"]
+
+[node name="WinLabel" type="Label" parent="WinPanel/VBox"]
+text = "Level complete!"
+horizontal_alignment = 1
+
+[node name="NextButton" type="Button" parent="WinPanel/VBox"]
+text = "Return to menu"

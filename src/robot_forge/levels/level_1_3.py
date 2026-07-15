@@ -88,9 +88,7 @@ class ThreeGearLevel:
         # Frame spans the entire chain: r_driver + 2*r_idler + r_driven.
         # (Idler meshes with both driver and driven.)
         self.frame_span = (
-            self.driver.pitch_radius
-            + 2.0 * self.idler.pitch_radius
-            + self.driven.pitch_radius
+            self.driver.pitch_radius + 2.0 * self.idler.pitch_radius + self.driven.pitch_radius
         )
         self.inertia = inertia
         self.damping = damping
@@ -136,9 +134,7 @@ class ThreeGearLevel:
         self.idler = SpurGear(idler_teeth)
         self.driven = SpurGear(driven_teeth)
         self.frame_span = (
-            self.driver.pitch_radius
-            + 2.0 * self.idler.pitch_radius
-            + self.driven.pitch_radius
+            self.driver.pitch_radius + 2.0 * self.idler.pitch_radius + self.driven.pitch_radius
         )
 
     def _motor_torque(self, omega_driver: float) -> float:
